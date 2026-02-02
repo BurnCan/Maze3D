@@ -1,14 +1,10 @@
 # build artifacts
-build/
-cmake-build-*/
-CMakeFiles/
+# Ignore CMake build artifacts
 CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
 Makefile
-*.cmake
-*.o
-*.a
-*.so
-
+build/
 # binaries
 Maze3D
 
