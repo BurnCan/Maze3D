@@ -54,12 +54,38 @@ void MazeMesh::build(const Maze& maze)
             });
         };
 
-        tri(0,1,2); tri(0,2,3); // back
-        tri(5,4,7); tri(5,7,6); // front
-        tri(4,0,3); tri(4,3,7); // left
-        tri(1,5,6); tri(1,6,2); // right
-        tri(3,2,6); tri(3,6,7); // top
-        tri(4,5,1); tri(4,1,0); // bottom
+        //tri(0,1,2); tri(0,2,3); // back
+        //tri(5,4,7); tri(5,7,6); // front
+        //tri(4,0,3); tri(4,3,7); // left
+        //tri(1,5,6); tri(1,6,2); // right
+        //tri(3,2,6); tri(3,6,7); // top
+        //tri(4,5,1); tri(4,1,0); // bottom
+
+        // -Z (back)
+        tri(0, 2, 1);
+        tri(0, 3, 2);
+
+        // +Z (front)
+        tri(4, 5, 6);
+        tri(4, 6, 7);
+
+        // -X (left)
+        tri(0, 4, 7);
+        tri(0, 7, 3);
+
+        // +X (right)
+        tri(1, 2, 6);
+        tri(1, 6, 5);
+
+        // +Y (top)
+        tri(3, 7, 6);
+        tri(3, 6, 2);
+
+        // -Y (bottom)
+        tri(0, 1, 5);
+        tri(0, 5, 4);
+
+
     };
 
     for (int y = 0; y < maze.height(); ++y) {
