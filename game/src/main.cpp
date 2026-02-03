@@ -25,6 +25,9 @@ constexpr float CELL_SIZE      = 1.0f;
 constexpr float WALL_HEIGHT    = 1.0f;
 constexpr float WALL_THICKNESS = 0.1f;
 
+//Wireframe mode toggle
+static bool g_wireframe = false;
+
 // --------------------
 // Mouse handling
 // --------------------
@@ -181,6 +184,23 @@ int main()
             floorShader.setMat4("uView", camera.view());
             floorShader.setMat4("uProj", camera.projection());
             floorShader.setVec3("uColor", glm::vec3(0.9f, 0.3f, 0.2f));
+
+            //Wireframe
+            static bool lastState = false;
+            bool pressed = glfwGetKey(glfwGetCurrentContext(), GLFW_KEY_F1) == GLFW_PRESS;
+
+            if (pressed && !lastState) {
+                g_wireframe = !g_wireframe;
+            }
+
+            lastState = pressed;
+
+            if (g_wireframe)
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            else
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+
 
 
             //Draw floor
