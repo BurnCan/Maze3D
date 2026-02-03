@@ -16,8 +16,11 @@ It includes procedural maze generation, collision detection, and batched wall re
 
 ---
 
+----
+
 ## Repository Structure
 ```
+
 Maze3D/
 ├── assets/ # Shaders and runtime assets
 ├── cmake/ # CMake helper files (dependencies, etc.)
@@ -29,8 +32,9 @@ Maze3D/
 
 '''
 
----
+----
 
+-----
 ## Dependencies
 
 You will need:
@@ -45,7 +49,7 @@ You will need:
 
 All third-party dependencies are fetched automatically via CMake where applicable.
 
----
+-----
 
 ## Build Instructions (Linux / macOS)
 
