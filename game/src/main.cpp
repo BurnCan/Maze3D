@@ -108,8 +108,8 @@ int main()
         );
 
         engine::Shader wallShader(
-            assetRoot / "shaders/wall.vert",
-            assetRoot / "shaders/wall.frag"
+            assetRoot / "shaders/hedge.vert",
+            assetRoot / "shaders/hedge.frag"
         );
 
         engine::Shader floorShader(
@@ -202,7 +202,7 @@ int main()
 
 
 
-
+            glDisable(GL_CULL_FACE);
             //Draw floor
             boxRenderer.draw(
                 floorShader,
@@ -223,6 +223,8 @@ int main()
                 glm::vec3(mazeWidth, 0.1f, mazeDepth)
 
             );
+            glEnable(GL_CULL_FACE);
+
 
 
             // Draw walls
