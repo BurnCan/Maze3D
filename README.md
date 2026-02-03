@@ -18,7 +18,7 @@ It includes procedural maze generation, collision detection, and batched wall re
 
 ----
 
-## Repository Structure
+### Repository Structure
 ```
 
 Maze3D/
@@ -35,7 +35,7 @@ Maze3D/
 ----
 
 -----
-## Dependencies
+#### Dependencies
 
 You will need:
 
@@ -51,7 +51,7 @@ All third-party dependencies are fetched automatically via CMake where applicabl
 
 -----
 
-## Build Instructions (Linux / macOS)
+##### Build Instructions (Linux / macOS)
 
 ```bash
 git clone https://github.com/burncan/Maze3D.git
