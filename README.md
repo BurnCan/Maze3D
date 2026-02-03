@@ -17,7 +17,7 @@ It includes procedural maze generation, collision detection, and batched wall re
 ---
 
 ## Repository Structure
-```bash
+```
 Maze3D/
 ├── assets/ # Shaders and runtime assets
 ├── cmake/ # CMake helper files (dependencies, etc.)
