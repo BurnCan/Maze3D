@@ -142,6 +142,7 @@ int main()
         //camera.setPosition({ 0.0f, 0.5f, 2.0f });
         //spawn upgrade?
         //spawn in center of a known reachable cell
+
         int sx = 0;
         int sy = 0;
 
@@ -150,6 +151,9 @@ int main()
             0.5f,
             (sy + 0.5f) * CELL_SIZE
         });
+        //debug print
+        //std::cout << "Spawn: " << camera.position().x
+          //<< ", " << camera.position().z << "\n";
 
         g_camera = &camera;
 
