@@ -19,7 +19,7 @@ It includes procedural maze generation, collision detection, and batched wall re
 ----
 
 ### Repository Structure
-```
+```bash
 
 Maze3D/
 ├── assets/ # Shaders and runtime assets
@@ -30,7 +30,7 @@ Maze3D/
 ├── CMakeLists.txt
 └── README.md
 
-'''
+```
 
 ----
 
@@ -65,7 +65,7 @@ cmake --build .
 Running the Game
 From the build directory:
 
-'''bash
+bash
 
 ./game/maze_game
 The game starts in fullscreen mode by default.
