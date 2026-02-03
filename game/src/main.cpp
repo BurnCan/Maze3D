@@ -138,7 +138,18 @@ int main()
         );
 
         // 🔑 IMPORTANT: deterministic spawn
-        camera.setPosition({ 0.0f, 0.5f, 2.0f });
+        //original
+        //camera.setPosition({ 0.0f, 0.5f, 2.0f });
+        //spawn upgrade?
+        //spawn in center of a known reachable cell
+        int sx = 0;
+        int sy = 0;
+
+        camera.setPosition({
+            (sx + 0.5f) * CELL_SIZE,
+            0.5f,
+            (sy + 0.5f) * CELL_SIZE
+        });
 
         g_camera = &camera;
 
@@ -201,7 +212,7 @@ int main()
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 
-
+            // TODO: Replace BoxRenderer floor/ceiling with PlaneMesh (proper winding)
             glDisable(GL_CULL_FACE);
             //Draw floor
             boxRenderer.draw(
