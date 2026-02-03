@@ -68,6 +68,7 @@ From the build directory:
 bash
 
 ./game/maze_game
+```
 The game starts in fullscreen mode by default.
 
 Controls
