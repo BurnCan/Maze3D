@@ -27,7 +27,7 @@ Maze3D/
 ├── CMakeLists.txt
 └── README.md
 
-bash
+'''
 
 ---
 
