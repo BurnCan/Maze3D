@@ -65,7 +65,7 @@ cmake --build .
 Running the Game
 From the build directory:
 
-bash
+'''bash
 
 ./game/maze_game
 The game starts in fullscreen mode by default.
