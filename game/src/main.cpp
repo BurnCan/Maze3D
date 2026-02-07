@@ -9,15 +9,19 @@
 #include <filesystem>
 
 #include "engine/window/Window.h"
+
+#include "engine/scene/FPSCamera.h"
+
 #include "engine/render/Shader.h"
-#include "engine/render/FPSCamera.h"
-#include "engine/maze/Maze.h"
-#include "engine/maze/MazeMesh.h"
-#include "engine/maze/MazeCollider.h"
 #include "engine/render/CubeMesh.h"
 #include "engine/render/BoxRenderer.h"
 
+#include "engine/maze/Maze.h"
+#include "engine/maze/MazeMesh.h"
+#include "engine/maze/MazeCollider.h"
 
+
+using namespace engine;
 const std::filesystem::path assetRoot = MAZE3D_ASSET_ROOT;
 
 

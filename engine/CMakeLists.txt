@@ -7,14 +7,16 @@ target_sources(maze_engine
         src/window/Window.cpp
 
         src/render/Shader.cpp
-        src/render/Camera.cpp
-        src/render/FPSCamera.cpp
+        src/render/CubeMesh.cpp
+        src/render/BoxRenderer.cpp
+
+
+        src/scene/FPSCamera.cpp
 
         src/maze/Maze.cpp
         src/maze/MazeMesh.cpp
         src/maze/MazeCollider.cpp
-        src/render/CubeMesh.cpp
-        src/render/BoxRenderer.cpp
+
 )
 
 # ✅ PUBLIC API headers live here

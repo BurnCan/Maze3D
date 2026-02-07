@@ -2,6 +2,7 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+namespace engine {
 Camera::Camera(float fovDeg, float aspect, float nearPlane, float farPlane)
     : m_fov(fovDeg),
       m_aspect(aspect),
@@ -54,3 +55,4 @@ void Camera::updateProjection()
         m_far
     );
 }
+} // namespace engine

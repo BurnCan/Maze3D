@@ -1,8 +1,9 @@
-#include "engine/render/FPSCamera.h"
+#include "engine/scene/FPSCamera.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 
+namespace engine {
 FPSCamera::FPSCamera(float fovDeg, float aspect, float nearPlane, float farPlane)
     : m_fov(fovDeg), m_aspect(aspect), m_near(nearPlane), m_far(farPlane)
 {
@@ -79,3 +80,7 @@ glm::vec3 FPSCamera::position() const
 {
     return m_position;
 }
+
+
+} // namespace engine
+

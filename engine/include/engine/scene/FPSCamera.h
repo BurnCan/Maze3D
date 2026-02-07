@@ -1,22 +1,27 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include "Camera.h"
 
-class FPSCamera {
+namespace engine
+{
+
+class FPSCamera : public Camera
+{
 public:
     FPSCamera(float fovDeg, float aspect, float nearPlane, float farPlane);
 
     void update(float deltaTime);
     void onMouseMove(float dx, float dy);
-    void setAspectRatio(float aspect);
 
-    //Mesh collider
+    // --- Camera interface ---
+    const glm::mat4& view() const override;
+    const glm::mat4& projection() const override;
+    void setAspectRatio(float aspect) override;
+
+    // --- FPS specific ---
     void setPosition(const glm::vec3& p);
     glm::vec3 position() const;
-
-
-    const glm::mat4& view() const;
-    const glm::mat4& projection() const;
 
 private:
     void updateVectors();
@@ -46,3 +51,5 @@ private:
     float m_speed = 5.0f;
     float m_sensitivity = 0.1f;
 };
+
+} // namespace engine

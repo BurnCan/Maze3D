@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 
+namespace engine {
 class Camera {
 public:
     Camera(float fovDeg, float aspect, float nearPlane, float farPlane);
@@ -32,3 +33,4 @@ private:
     glm::mat4 m_view{1.0f};
     glm::mat4 m_projection{1.0f};
 };
+} // namespace engine
