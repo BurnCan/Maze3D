@@ -64,13 +64,11 @@ void EditorViewport::begin(engine::FPSCamera& camera)
 
     ImGuiIO& io = ImGui::GetIO();
 
+    // bigger editor text
     io.FontGlobalScale = 3.2f;
 
-
-
-
     // ---------------------------
-    // mouse capture
+    // mouse capture logic
     // ---------------------------
     bool hovered   = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
     bool rightDown = ImGui::IsMouseDown(ImGuiMouseButton_Right);
@@ -87,8 +85,40 @@ void EditorViewport::begin(engine::FPSCamera& camera)
         m_capturingMouse = false;
     }
 
+    // ---------------------------
+    // EDITOR FLY CAMERA INPUT
+    // ---------------------------
     if (m_capturingMouse)
-        camera.onMouseMove(io.MouseDelta.x, -io.MouseDelta.y);
+    {
+        float baseSpeed = 5.0f;
+
+        // shift speed boost
+        if (glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+            baseSpeed *= 3.0f;
+
+        float speed = baseSpeed * io.DeltaTime;
+
+        if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
+            camera.moveForward(speed);
+
+        if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
+            camera.moveForward(-speed);
+
+        if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
+            camera.moveRight(-speed);
+
+        if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
+            camera.moveRight(speed);
+
+        if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS)
+            camera.moveUp(-speed);
+
+        if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
+            camera.moveUp(speed);
+
+        // mouse look
+        camera.rotate(io.MouseDelta.x, -io.MouseDelta.y);
+    }
 
     // ---------------------------
     // bind FBO for rendering
@@ -117,3 +147,4 @@ void EditorViewport::end()
 
     ImGui::End();
 }
+

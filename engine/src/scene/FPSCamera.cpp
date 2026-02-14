@@ -1,7 +1,7 @@
 #include "engine/scene/FPSCamera.h"
 
 #include <glm/gtc/matrix_transform.hpp>
-#include <GLFW/glfw3.h>
+//#include <GLFW/glfw3.h>
 
 namespace engine {
 FPSCamera::FPSCamera(float fovDeg, float aspect, float nearPlane, float farPlane)
@@ -17,28 +17,46 @@ void FPSCamera::setAspectRatio(float aspect)
     m_proj = glm::perspective(glm::radians(m_fov), m_aspect, m_near, m_far);
 }
 
-void FPSCamera::update(float dt)
+//void FPSCamera::update(float dt)
+//{
+    //float vel = m_speed * dt;
+
+    //if (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS)
+        //m_position += m_front * vel;
+    //if (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS)
+        //m_position -= m_front * vel;
+    //if (glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS)
+        //m_position -= m_right * vel;
+    //if (glfwGetKey(win, GLFW_KEY_D) == GLFW_PRESS)
+        //m_position += m_right * vel;
+    //if (glfwGetKey(win, GLFW_KEY_SPACE) == GLFW_PRESS)
+        //m_position.y += vel;
+    //if (glfwGetKey(win, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+        //m_position.y -= vel;
+
+    //m_view = glm::lookAt(m_position, m_position + m_front, m_up);
+//}
+
+// --- Input math ---
+void FPSCamera::moveForward(float amount)
 {
-    GLFWwindow* win = glfwGetCurrentContext();
-    float vel = m_speed * dt;
-
-    if (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS)
-        m_position += m_front * vel;
-    if (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS)
-        m_position -= m_front * vel;
-    if (glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS)
-        m_position -= m_right * vel;
-    if (glfwGetKey(win, GLFW_KEY_D) == GLFW_PRESS)
-        m_position += m_right * vel;
-    if (glfwGetKey(win, GLFW_KEY_SPACE) == GLFW_PRESS)
-        m_position.y += vel;
-    if (glfwGetKey(win, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-        m_position.y -= vel;
-
-    m_view = glm::lookAt(m_position, m_position + m_front, m_up);
+    m_position += m_front * amount;
+    updateVectors();
 }
 
-void FPSCamera::onMouseMove(float dx, float dy)
+void FPSCamera::moveRight(float amount)
+{
+    m_position += m_right * amount;
+    updateVectors();
+}
+
+void FPSCamera::moveUp(float amount)
+{
+    m_position.y += amount;
+    updateVectors();
+}
+
+void FPSCamera::rotate(float dx, float dy)
 {
     dx *= m_sensitivity;
     dy *= m_sensitivity;
@@ -46,11 +64,25 @@ void FPSCamera::onMouseMove(float dx, float dy)
     m_yaw   += dx;
     m_pitch += dy;
 
-    if (m_pitch > 89.0f)  m_pitch = 89.0f;
-    if (m_pitch < -89.0f) m_pitch = -89.0f;
+    m_pitch = glm::clamp(m_pitch, -89.0f, 89.0f);
 
     updateVectors();
 }
+
+
+//void FPSCamera::onMouseMove(float dx, float dy)
+//{
+    //dx *= m_sensitivity;
+    //dy *= m_sensitivity;
+
+    //m_yaw   += dx;
+    //m_pitch += dy;
+
+    //if (m_pitch > 89.0f)  m_pitch = 89.0f;
+    //if (m_pitch < -89.0f) m_pitch = -89.0f;
+
+    //updateVectors();
+//}
 
 void FPSCamera::updateVectors()
 {

@@ -11,8 +11,8 @@ class FPSCamera : public Camera
 public:
     FPSCamera(float fovDeg, float aspect, float nearPlane, float farPlane);
 
-    void update(float deltaTime);
-    void onMouseMove(float dx, float dy);
+    //void update(float deltaTime);
+    //void rotate(float dx, float dy);
 
     // --- Camera interface ---
     const glm::mat4& view() const override;
@@ -22,6 +22,13 @@ public:
     // --- FPS specific ---
     void setPosition(const glm::vec3& p);
     glm::vec3 position() const;
+
+    // --- Movement API ---
+    void moveForward(float amount);
+    void moveRight(float amount);
+    void moveUp(float amount);
+    void rotate(float dx, float dy);
+
 
 private:
     void updateVectors();

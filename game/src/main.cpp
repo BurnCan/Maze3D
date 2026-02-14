@@ -1,4 +1,6 @@
+
 #include <iostream>
+#include <filesystem>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -6,11 +8,10 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <filesystem>
-
 #include "engine/window/Window.h"
 
 #include "engine/scene/FPSCamera.h"
+#include "engine/controllers/FPSController.h"
 
 #include "engine/render/Shader.h"
 #include "engine/render/CubeMesh.h"
@@ -20,119 +21,77 @@
 #include "engine/maze/MazeMesh.h"
 #include "engine/maze/MazeCollider.h"
 
-
 using namespace engine;
-const std::filesystem::path assetRoot = MAZE3D_ASSET_ROOT;
 
+const std::filesystem::path assetRoot = MAZE3D_ASSET_ROOT;
 
 constexpr float CELL_SIZE      = 1.0f;
 constexpr float WALL_HEIGHT    = 1.0f;
 constexpr float WALL_THICKNESS = 0.1f;
 
-//Wireframe mode toggle
 static bool g_wireframe = false;
-
-// --------------------
-// Mouse handling
-// --------------------
-static bool firstMouse = true;
-static double lastX = 0.0;
-static double lastY = 0.0;
-static FPSCamera* g_camera = nullptr;
-
-static void mouse_callback(GLFWwindow*, double xpos, double ypos)
-{
-    if (firstMouse) {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    double dx = xpos - lastX;
-    double dy = lastY - ypos; // inverted Y
-
-    lastX = xpos;
-    lastY = ypos;
-
-    if (g_camera) {
-        g_camera->onMouseMove((float)dx, (float)dy);
-    }
-}
 
 int main()
 {
-
-
-    try {
-
-
-
-        // --------------------
+    try
+    {
+        // ======================================================
         // Window / OpenGL
-        // --------------------
+        // ======================================================
         Window window(1280, 720, "Maze3D");
+        GLFWwindow* glfwWindow = glfwGetCurrentContext();
+
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
         glFrontFace(GL_CCW);
 
+        glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+        // ======================================================
+        // Rendering helpers
+        // ======================================================
+        CubeMesh cube;
+        BoxRenderer boxRenderer(cube);
 
-        //declare CubeMesh cube
-        engine::CubeMesh cube;
-        engine::BoxRenderer boxRenderer(cube);
-
-        // --------------------
-        // Maze (still used for collision)
-        // --------------------
-        engine::Maze maze(10, 10);
+        // ======================================================
+        // Maze
+        // ======================================================
+        Maze maze(10, 10);
         maze.generate();
 
-        engine::MazeMesh mazeMesh;
+        MazeMesh mazeMesh;
         mazeMesh.build(maze);
 
-        engine::MazeCollider collider;
+        MazeCollider collider;
         collider.build(maze);
 
         float mazeWidth  = maze.width()  * CELL_SIZE;
         float mazeDepth  = maze.height() * CELL_SIZE;
 
-
-
-
-
-
-
-        // --------------------
-        // Shader sources
-        // --------------------
-        engine::Shader shader(
-            assetRoot / "shaders/basic.vert",
-            assetRoot / "shaders/basic.frag"
-        );
-
-        engine::Shader wallShader(
+        // ======================================================
+        // Shaders
+        // ======================================================
+        Shader wallShader(
             assetRoot / "shaders/hedge.vert",
             assetRoot / "shaders/hedge.frag"
         );
 
-        engine::Shader floorShader(
+        Shader floorShader(
             assetRoot / "shaders/floor.vert",
             assetRoot / "shaders/floor.frag"
         );
 
-        engine::Shader ceilingShader(
+        Shader ceilingShader(
             assetRoot / "shaders/ceiling.vert",
             assetRoot / "shaders/ceiling.frag"
         );
 
-
-
-        // --------------------
-        // Camera
-        // --------------------
+        // ======================================================
+        // Camera + Controller
+        // ======================================================
         int fbW = 0, fbH = 0;
-        glfwGetFramebufferSize(glfwGetCurrentContext(), &fbW, &fbH);
+        glfwGetFramebufferSize(glfwWindow, &fbW, &fbH);
 
         FPSCamera camera(
             60.0f,
@@ -141,46 +100,53 @@ int main()
             100.0f
         );
 
-        // 🔑 IMPORTANT: deterministic spawn
-        //original
-        //camera.setPosition({ 0.0f, 0.5f, 2.0f });
-        //spawn upgrade?
-        //spawn in center of a known reachable cell
+        FPSController controller(glfwWindow);
 
-        int sx = 0;
-        int sy = 0;
+        camera.setPosition({ 0.5f, 0.5f, 0.5f });
 
-        camera.setPosition({
-            (sx + 0.5f) * CELL_SIZE,
-            0.5f,
-            (sy + 0.5f) * CELL_SIZE
-        });
-        //debug print
-        //std::cout << "Spawn: " << camera.position().x
-          //<< ", " << camera.position().z << "\n";
+        // mouse tracking (polling, not callbacks)
+        double lastX = 0.0;
+        double lastY = 0.0;
+        glfwGetCursorPos(glfwWindow, &lastX, &lastY);
 
-        g_camera = &camera;
-
-        GLFWwindow* glfwWindow = glfwGetCurrentContext();
-        glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        glfwSetCursorPosCallback(glfwWindow, mouse_callback);
-
-        // --------------------
+        // ======================================================
         // Timing
-        // --------------------
+        // ======================================================
         float lastTime = (float)glfwGetTime();
 
-        // --------------------
-        // Render loop
-        // --------------------
-        while (!window.shouldClose()) {
+        // ======================================================
+        // Main loop
+        // ======================================================
+        while (!window.shouldClose())
+        {
             float now = (float)glfwGetTime();
-            float deltaTime = now - lastTime;
-            lastTime = now;
+            float dt  = now - lastTime;
+            lastTime  = now;
 
-            // ---- camera movement
+            // --------------------------------------------------
+            // Poll events
+            // --------------------------------------------------
+            window.pollEvents();
+
+            // --------------------------------------------------
+            // Mouse delta (clean replacement for callbacks)
+            // --------------------------------------------------
+            double mx, my;
+            glfwGetCursorPos(glfwWindow, &mx, &my);
+
+            float dx = (float)(mx - lastX);
+            float dy = (float)(lastY - my);
+
+            lastX = mx;
+            lastY = my;
+
+            // --------------------------------------------------
+            // Camera movement via controller
+            // --------------------------------------------------
             glm::vec3 oldPos = camera.position();
-            camera.update(deltaTime);
+
+            controller.update(camera, dt, dx, dy);
+
             glm::vec3 desired = camera.position();
 
             constexpr float PLAYER_RADIUS = 0.25f;
@@ -194,23 +160,14 @@ int main()
 
             camera.setPosition(corrected);
 
-            // ---- rendering
-            glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
-            floorShader.bind();
-            floorShader.setMat4("uView", camera.view());
-            floorShader.setMat4("uProj", camera.projection());
-            floorShader.setVec3("uColor", glm::vec3(0.9f, 0.3f, 0.2f));
-
-            //Wireframe
+            // --------------------------------------------------
+            // Wireframe toggle
+            // --------------------------------------------------
             static bool lastState = false;
-            bool pressed = glfwGetKey(glfwGetCurrentContext(), GLFW_KEY_F1) == GLFW_PRESS;
+            bool pressed = glfwGetKey(glfwWindow, GLFW_KEY_F1) == GLFW_PRESS;
 
-            if (pressed && !lastState) {
+            if (pressed && !lastState)
                 g_wireframe = !g_wireframe;
-            }
 
             lastState = pressed;
 
@@ -219,55 +176,54 @@ int main()
             else
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+            // --------------------------------------------------
+            // Rendering
+            // --------------------------------------------------
+            glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            // TODO: Replace BoxRenderer floor/ceiling with PlaneMesh (proper winding)
+            // floor
             glDisable(GL_CULL_FACE);
-            //Draw floor
+            floorShader.bind();
+            floorShader.setMat4("uView", camera.view());
+            floorShader.setMat4("uProj", camera.projection());
+
             boxRenderer.draw(
                 floorShader,
                 glm::vec3(mazeWidth * 0.5f, -0.05f, mazeDepth * 0.5f),
                 glm::vec3(mazeWidth, 0.1f, mazeDepth)
-
             );
 
+            // ceiling
             ceilingShader.bind();
             ceilingShader.setMat4("uView", camera.view());
             ceilingShader.setMat4("uProj", camera.projection());
-            ceilingShader.setVec3("uColor", glm::vec3(0.9f, 0.3f, 0.2f));
 
-            //Draw ceiling
             boxRenderer.draw(
                 ceilingShader,
                 glm::vec3(mazeWidth * 0.5f, WALL_HEIGHT + 0.05f, mazeDepth * 0.5f),
                 glm::vec3(mazeWidth, 0.1f, mazeDepth)
-
             );
+
             glEnable(GL_CULL_FACE);
 
-
-
-            // Draw walls
-            // ---- draw maze walls (batched)
+            // walls
             wallShader.bind();
             wallShader.setMat4("uView", camera.view());
             wallShader.setMat4("uProj", camera.projection());
-            wallShader.setVec3("uColor", glm::vec3(0.7f, 0.7f, 0.75f)); // if used
 
             mazeMesh.draw(wallShader);
 
-
+            // --------------------------------------------------
             window.swapBuffers();
-            window.pollEvents();
         }
-
-
     }
-    catch (const std::exception& e) {
+    catch (const std::exception& e)
+    {
         std::cerr << "Fatal error: " << e.what() << "\n";
         return -1;
     }
 
     return 0;
 }
-
 

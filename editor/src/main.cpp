@@ -72,6 +72,18 @@ int main()
         ImGui::CreateContext();
 
         ImGuiIO& io = ImGui::GetIO();
+
+        //float dx = 0.0f;
+        //float dy = 0.0f;
+
+        //if (capturingMouse)
+        //{
+            //dx = io.MouseDelta.x;
+            //dy = -io.MouseDelta.y;
+        //}
+
+//controller.update(camera, dt, dx, dy);
+
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
@@ -152,11 +164,6 @@ int main()
         FPSCamera camera(60.0f, 16.f/9.f, 0.1f, 100.f);
         camera.setPosition({0.5f, 0.5f, 0.5f});
 
-        //g_camera = &camera;
-
-        //glfwSetInputMode(glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        //glfwSetCursorPosCallback(glfwWindow, mouse_callback);
-
         float lastTime = (float)glfwGetTime();
 
         // =====================================
@@ -167,23 +174,6 @@ int main()
             float now = (float)glfwGetTime();
             float dt = now - lastTime;
             lastTime = now;
-
-            // ==============================
-            // Camera movement + collision
-            // ==============================
-            glm::vec3 oldPos = camera.position();
-            camera.update(dt);
-            glm::vec3 desired = camera.position();
-
-            constexpr float PLAYER_RADIUS = 0.25f;
-            glm::vec3 corrected = oldPos;
-
-            corrected.x = desired.x;
-            collider.resolve(corrected, PLAYER_RADIUS);
-            corrected.z = desired.z;
-            collider.resolve(corrected, PLAYER_RADIUS);
-
-            camera.setPosition(corrected);
 
             // ==============================
             // ImGui frame begin
@@ -219,8 +209,6 @@ int main()
             // ======================================
             viewport.begin(camera);
 
-            // ---- render your scene exactly like normal ----
-
             if (g_wireframe)
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             else
@@ -229,8 +217,8 @@ int main()
             glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            // floor
             glDisable(GL_CULL_FACE);
+
             floorShader.bind();
             floorShader.setMat4("uView", camera.view());
             floorShader.setMat4("uProj", camera.projection());
@@ -240,7 +228,6 @@ int main()
                 glm::vec3(mazeWidth*0.5f, -0.05f, mazeDepth*0.5f),
                 glm::vec3(mazeWidth, 0.1f, mazeDepth));
 
-            // ceiling
             ceilingShader.bind();
             ceilingShader.setMat4("uView", camera.view());
             ceilingShader.setMat4("uProj", camera.projection());
@@ -252,13 +239,11 @@ int main()
 
             glEnable(GL_CULL_FACE);
 
-            // walls
             wallShader.bind();
             wallShader.setMat4("uView", camera.view());
             wallShader.setMat4("uProj", camera.projection());
             mazeMesh.draw(wallShader);
 
-            // --------------------------------------
             viewport.end();
 
             // ==============================
@@ -278,6 +263,7 @@ int main()
             window.swapBuffers();
             window.pollEvents();
         }
+
 
         // =====================================
         // Shutdown
