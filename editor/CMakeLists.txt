@@ -11,6 +11,7 @@ target_link_libraries(maze_editor
     PRIVATE
         maze_engine
         imgui
+        app
 )
 
 target_include_directories(maze_editor

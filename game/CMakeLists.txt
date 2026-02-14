@@ -8,6 +8,7 @@ target_sources(maze_game
 target_link_libraries(maze_game
     PRIVATE
         maze_engine
+        app
 )
 
 if (WIN32)

@@ -1,4 +1,4 @@
-#include "engine/controllers/FPSController.h"
+#include "app/controllers/FPSController.h"
 #include "engine/scene/FPSCamera.h"
 #include <GLFW/glfw3.h>
 

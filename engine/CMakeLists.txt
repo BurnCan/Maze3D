@@ -12,7 +12,7 @@ target_sources(maze_engine
 
 
         src/scene/FPSCamera.cpp
-        src/controllers/FPSController.cpp
+
 
         src/maze/Maze.cpp
         src/maze/MazeMesh.cpp

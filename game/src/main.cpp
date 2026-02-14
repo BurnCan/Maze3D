@@ -11,7 +11,7 @@
 #include "engine/window/Window.h"
 
 #include "engine/scene/FPSCamera.h"
-#include "engine/controllers/FPSController.h"
+
 
 #include "engine/render/Shader.h"
 #include "engine/render/CubeMesh.h"
@@ -20,6 +20,8 @@
 #include "engine/maze/Maze.h"
 #include "engine/maze/MazeMesh.h"
 #include "engine/maze/MazeCollider.h"
+
+#include "app/controllers/FPSController.h"
 
 using namespace engine;
 

@@ -10,6 +10,7 @@ option(MAZE3D_BUILD_EDITOR "Build maze editor" ON)
 
 add_subdirectory(engine)
 add_subdirectory(game)
+add_subdirectory(app)
 
 if (MAZE3D_BUILD_EDITOR)
     add_subdirectory(editor)

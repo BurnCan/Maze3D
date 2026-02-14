@@ -11,8 +11,7 @@ class FPSCamera : public Camera
 public:
     FPSCamera(float fovDeg, float aspect, float nearPlane, float farPlane);
 
-    //void update(float deltaTime);
-    //void rotate(float dx, float dy);
+
 
     // --- Camera interface ---
     const glm::mat4& view() const override;
