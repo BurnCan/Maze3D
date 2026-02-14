@@ -3,104 +3,119 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <filesystem> // Required for path operations
 
 #include <glad/glad.h>
 
 namespace engine {
 
-static void checkLink(unsigned int program)
-{
-    int success;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) {
-        char info[1024];
-        glGetProgramInfoLog(program, 1024, nullptr, info);
-        throw std::runtime_error(info);
+    static void checkLink(unsigned int program)
+    {
+        int success;
+        glGetProgramiv(program, GL_LINK_STATUS, &success);
+        if (!success) {
+            char info[1024];
+            glGetProgramInfoLog(program, 1024, nullptr, info);
+            throw std::runtime_error("Shader Link Error: " + std::string(info));
+        }
     }
-}
 
-static void checkCompile(unsigned int shader)
-{
-    int success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char info[1024];
-        glGetShaderInfoLog(shader, 1024, nullptr, info);
-        throw std::runtime_error(info);
+    static void checkCompile(unsigned int shader)
+    {
+        int success;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+        if (!success) {
+            char info[1024];
+            glGetShaderInfoLog(shader, 1024, nullptr, info);
+            throw std::runtime_error("Shader Compilation Error: " + std::string(info));
+        }
     }
-}
 
-Shader::Shader(const std::string& vertPath,
-               const std::string& fragPath)
-{
-    std::string vertSrc = loadFile(vertPath);
-    std::string fragSrc = loadFile(fragPath);
+    // Updated to accept std::filesystem::path
+    Shader::Shader(const std::filesystem::path& vertPath,
+        const std::filesystem::path& fragPath)
+    {
+        std::string vertSrc = loadFile(vertPath);
+        std::string fragSrc = loadFile(fragPath);
 
-    unsigned int vs = compile(GL_VERTEX_SHADER, vertSrc);
-    unsigned int fs = compile(GL_FRAGMENT_SHADER, fragSrc);
+        unsigned int vs = compile(GL_VERTEX_SHADER, vertSrc);
+        unsigned int fs = compile(GL_FRAGMENT_SHADER, fragSrc);
 
-    m_program = glCreateProgram();
-    glAttachShader(m_program, vs);
-    glAttachShader(m_program, fs);
-    glLinkProgram(m_program);
+        m_program = glCreateProgram();
+        glAttachShader(m_program, vs);
+        glAttachShader(m_program, fs);
+        glLinkProgram(m_program);
 
-    checkLink(m_program);
+        // Error check is vital for debugging paths on Windows
+        try {
+            checkLink(m_program);
+        }
+        catch (...) {
+            glDeleteShader(vs);
+            glDeleteShader(fs);
+            throw;
+        }
 
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-}
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+    }
 
-Shader::~Shader()
-{
-    if (m_program)
-        glDeleteProgram(m_program);
-}
+    Shader::~Shader()
+    {
+        if (m_program)
+            glDeleteProgram(m_program);
+    }
 
-unsigned int Shader::id() const
-{
-    return m_program;
-}
+    unsigned int Shader::id() const
+    {
+        return m_program;
+    }
 
-void Shader::bind() const
-{
-    glUseProgram(m_program);
-}
+    void Shader::bind() const
+    {
+        glUseProgram(m_program);
+    }
 
-void Shader::setMat4(const std::string& name,
-                     const glm::mat4& mat) const
-{
-    int loc = glGetUniformLocation(m_program, name.c_str());
-    glUniformMatrix4fv(loc, 1, GL_FALSE, &mat[0][0]);
-}
+    void Shader::setMat4(const std::string& name,
+        const glm::mat4& mat) const
+    {
+        int loc = glGetUniformLocation(m_program, name.c_str());
+        glUniformMatrix4fv(loc, 1, GL_FALSE, &mat[0][0]);
+    }
 
-void Shader::setVec3(const std::string& name,
-                     const glm::vec3& vec) const
-{
-    int loc = glGetUniformLocation(m_program, name.c_str());
-    glUniform3fv(loc, 1, &vec[0]);
-}
+    void Shader::setVec3(const std::string& name,
+        const glm::vec3& vec) const
+    {
+        int loc = glGetUniformLocation(m_program, name.c_str());
+        glUniform3fv(loc, 1, &vec[0]);
+    }
 
-std::string Shader::loadFile(const std::string& path)
-{
-    std::ifstream file(path);
-    if (!file.is_open())
-        throw std::runtime_error("Failed to open shader: " + path);
+    // Updated to use std::filesystem::path natively
+    std::string Shader::loadFile(const std::filesystem::path& path)
+    {
+        // Modern C++ ifstream accepts path objects directly
+        std::ifstream file(path);
 
-    std::stringstream ss;
-    ss << file.rdbuf();
-    return ss.str();
-}
+        if (!file.is_open()) {
+            // Use .string() for the error message, but the path itself stays native
+            throw std::runtime_error("Failed to open shader file at: " + path.string());
+        }
 
-unsigned int Shader::compile(unsigned int type,
-                             const std::string& src)
-{
-    unsigned int shader = glCreateShader(type);
-    const char* cstr = src.c_str();
-    glShaderSource(shader, 1, &cstr, nullptr);
-    glCompileShader(shader);
+        std::stringstream ss;
+        ss << file.rdbuf();
+        return ss.str();
+    }
 
-    checkCompile(shader);
-    return shader;
-}
+    unsigned int Shader::compile(unsigned int type,
+        const std::string& src)
+    {
+        unsigned int shader = glCreateShader(type);
+        const char* cstr = src.c_str();
+        glShaderSource(shader, 1, &cstr, nullptr);
+        glCompileShader(shader);
+
+        checkCompile(shader);
+        return shader;
+    }
 
 } // namespace engine

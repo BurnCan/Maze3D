@@ -73,8 +73,8 @@ int main()
         // Shaders
         // ======================================================
         Shader wallShader(
-            assetRoot / "shaders/hedge.vert",
-            assetRoot / "shaders/hedge.frag"
+            assetRoot / "shaders/wall.vert",
+            assetRoot / "shaders/wall.frag"
         );
 
         Shader floorShader(

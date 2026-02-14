@@ -147,8 +147,8 @@ int main()
         // Shaders
         // =====================================
         engine::Shader wallShader(
-            assetRoot / "shaders/hedge.vert",
-            assetRoot / "shaders/hedge.frag");
+            assetRoot / "shaders/wall.vert",
+            assetRoot / "shaders/wall.frag");
 
         engine::Shader floorShader(
             assetRoot / "shaders/floor.vert",
