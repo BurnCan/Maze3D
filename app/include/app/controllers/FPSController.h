@@ -1,23 +1,23 @@
 #pragma once
 
-struct GLFWwindow;
+#include "engine/scene/FPSCamera.h"
+#include "app/controllers/ICameraController.h"
+#include <GLFW/glfw3.h>
 
-namespace engine {
+namespace app
+{
 
-class FPSCamera;
-
-class FPSController
+class FPSController : public ICameraController
 {
 public:
-    FPSController(GLFWwindow* window);
+    // Constructor takes a GLFW window pointer for input polling
+    explicit FPSController(GLFWwindow* window);
 
-    void update(FPSCamera& camera, float dt, float mouseDx, float mouseDy);
-
-    void setMouseCaptured(bool captured);
+    // Override from ICameraController
+    void update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy) override;
 
 private:
-    GLFWwindow* m_window{};
-    float m_speed = 5.0f;
+    GLFWwindow* m_window = nullptr;  // Window reference for keyboard/mouse input
 };
 
-}
+} // namespace app

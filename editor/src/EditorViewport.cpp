@@ -86,39 +86,17 @@ void EditorViewport::begin(engine::FPSCamera& camera)
     }
 
     // ---------------------------
-    // EDITOR FLY CAMERA INPUT
+    // Camera controller update
     // ---------------------------
-    if (m_capturingMouse)
+    if (m_capturingMouse && m_controller)
     {
-        float baseSpeed = 5.0f;
+        ImGuiIO& io = ImGui::GetIO();
+        float mouseDx = io.MouseDelta.x;
+        float mouseDy = -io.MouseDelta.y;
 
-        // shift speed boost
-        if (glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            baseSpeed *= 3.0f;
-
-        float speed = baseSpeed * io.DeltaTime;
-
-        if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
-            camera.moveForward(speed);
-
-        if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
-            camera.moveForward(-speed);
-
-        if (glfwGetKey(m_window, GLFW_KEY_A) == GLFW_PRESS)
-            camera.moveRight(-speed);
-
-        if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
-            camera.moveRight(speed);
-
-        if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS)
-            camera.moveUp(-speed);
-
-        if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
-            camera.moveUp(speed);
-
-        // mouse look
-        camera.rotate(io.MouseDelta.x, -io.MouseDelta.y);
+        m_controller->update(camera, io.DeltaTime, mouseDx, mouseDy);
     }
+
 
     // ---------------------------
     // bind FBO for rendering

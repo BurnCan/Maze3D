@@ -1,24 +1,23 @@
-#include "app/controllers/FPSController.h"
+#include "app/controllers/EditorFlyController.h"
 #include <GLFW/glfw3.h>
 
 namespace app
 {
 
-FPSController::FPSController(GLFWwindow* window)
+EditorFlyController::EditorFlyController(GLFWwindow* window)
     : m_window(window)
 {
 }
 
-void FPSController::update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy)
+void EditorFlyController::update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy)
 {
     if (!m_window) return;
 
-    float baseSpeed = 5.0f;
+    float speed = m_baseSpeed * dt;
 
+    // shift speed boost
     if (glfwGetKey(m_window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        baseSpeed *= 3.0f;
-
-    float speed = baseSpeed * dt;
+        speed *= 3.0f;
 
     if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
         camera.moveForward(speed);
@@ -28,10 +27,10 @@ void FPSController::update(engine::FPSCamera& camera, float dt, float mouseDx, f
         camera.moveRight(-speed);
     if (glfwGetKey(m_window, GLFW_KEY_D) == GLFW_PRESS)
         camera.moveRight(speed);
-    if (glfwGetKey(m_window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        camera.moveUp(speed);
-    if (glfwGetKey(m_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+    if (glfwGetKey(m_window, GLFW_KEY_Q) == GLFW_PRESS)
         camera.moveUp(-speed);
+    if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
+        camera.moveUp(speed);
 
     // mouse look
     camera.rotate(mouseDx, mouseDy);

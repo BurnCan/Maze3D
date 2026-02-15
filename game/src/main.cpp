@@ -22,6 +22,7 @@
 #include "engine/maze/MazeCollider.h"
 
 #include "app/controllers/FPSController.h"
+#include "app/controllers/ICameraController.h"
 
 using namespace engine;
 
@@ -89,77 +90,51 @@ int main()
             assetRoot / "shaders/ceiling.frag"
         );
 
-        // ======================================================
-        // Camera + Controller
-        // ======================================================
+        // ================================
+        // Camera + controller
+        // ================================
         int fbW = 0, fbH = 0;
         glfwGetFramebufferSize(glfwWindow, &fbW, &fbH);
 
-        FPSCamera camera(
-            60.0f,
-            static_cast<float>(fbW) / static_cast<float>(fbH),
-            0.1f,
-            100.0f
-        );
+        FPSCamera camera(60.f, float(fbW)/float(fbH), 0.1f, 100.f);
+        camera.setPosition({0.5f, 0.5f, 0.5f});
 
-        FPSController controller(glfwWindow);
+        // Use FPSController for game input
+        std::unique_ptr<app::ICameraController> controller =
+            std::make_unique<app::FPSController>(glfwWindow);
 
-        camera.setPosition({ 0.5f, 0.5f, 0.5f });
-
-        // mouse tracking (polling, not callbacks)
-        double lastX = 0.0;
-        double lastY = 0.0;
+        double lastX = 0.0, lastY = 0.0;
         glfwGetCursorPos(glfwWindow, &lastX, &lastY);
 
-        // ======================================================
-        // Timing
-        // ======================================================
         float lastTime = (float)glfwGetTime();
 
-        // ======================================================
-        // Main loop
-        // ======================================================
         while (!window.shouldClose())
         {
             float now = (float)glfwGetTime();
-            float dt  = now - lastTime;
-            lastTime  = now;
+            float dt = now - lastTime;
+            lastTime = now;
 
-            // --------------------------------------------------
-            // Poll events
-            // --------------------------------------------------
             window.pollEvents();
 
-            // --------------------------------------------------
-            // Mouse delta (clean replacement for callbacks)
-            // --------------------------------------------------
             double mx, my;
             glfwGetCursorPos(glfwWindow, &mx, &my);
-
-            float dx = (float)(mx - lastX);
-            float dy = (float)(lastY - my);
-
+            float dx = float(mx - lastX);
+            float dy = float(lastY - my);
             lastX = mx;
             lastY = my;
 
-            // --------------------------------------------------
-            // Camera movement via controller
-            // --------------------------------------------------
+            // ----------------------------
+            // Update camera via controller
+            // ----------------------------
             glm::vec3 oldPos = camera.position();
-
-            controller.update(camera, dt, dx, dy);
-
+            controller->update(camera, dt, dx, dy);
             glm::vec3 desired = camera.position();
 
+            // Collision
             constexpr float PLAYER_RADIUS = 0.25f;
             glm::vec3 corrected = oldPos;
-
-            corrected.x = desired.x;
-            collider.resolve(corrected, PLAYER_RADIUS);
-
-            corrected.z = desired.z;
-            collider.resolve(corrected, PLAYER_RADIUS);
-
+            corrected.x = desired.x; collider.resolve(corrected, PLAYER_RADIUS);
+            corrected.z = desired.z; collider.resolve(corrected, PLAYER_RADIUS);
             camera.setPosition(corrected);
 
             // --------------------------------------------------
@@ -228,4 +203,3 @@ int main()
 
     return 0;
 }
-

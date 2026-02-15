@@ -1,6 +1,9 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <memory>
+#include <app/controllers/ICameraController.h>
+
 
 struct GLFWwindow;
 namespace engine {
@@ -14,7 +17,15 @@ public:
     EditorViewport(GLFWwindow* window);
     ~EditorViewport();
 
+
+
     void begin(engine::FPSCamera& camera);  // now matches global type
+
+    // Public setter for the controller
+     void setController(std::unique_ptr<app::ICameraController> controller)
+    {
+        m_controller = std::move(controller);
+    }
 
     void end();
     void bindFramebuffer();
@@ -30,4 +41,5 @@ private:
     unsigned int m_depth{};
     glm::ivec2 m_size{1280, 720};
     bool m_capturingMouse = false;
+    std::unique_ptr<app::ICameraController> m_controller;
 };

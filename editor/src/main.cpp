@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -6,24 +7,23 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <filesystem>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
 #include "engine/window/Window.h"
-#include "engine/scene/FPSCamera.h"
-
 #include "engine/render/Shader.h"
 #include "engine/render/CubeMesh.h"
 #include "engine/render/BoxRenderer.h"
-
 #include "engine/maze/Maze.h"
 #include "engine/maze/MazeMesh.h"
 #include "engine/maze/MazeCollider.h"
+#include "engine/scene/FPSCamera.h"
 
 #include "editor/EditorViewport.h"
+
+#include <app/controllers/EditorFlyController.h>
+#include <app/controllers/ICameraController.h>
 
 using namespace engine;
 
@@ -33,27 +33,16 @@ constexpr float CELL_SIZE      = 1.0f;
 constexpr float WALL_HEIGHT    = 1.0f;
 constexpr float WALL_THICKNESS = 0.1f;
 
-// =====================================
-// Globals
-// =====================================
+// Global wireframe toggle
 static bool g_wireframe = false;
 
-
-
-
-
-
-
-// =====================================
-// Main
-// =====================================
 int main()
 {
     try
     {
-        // =====================================
-        // Window / OpenGL
-        // =====================================
+        // ---------------------------
+        // Window / OpenGL setup
+        // ---------------------------
         Window window(1280, 720, "Maze3D Editor");
 
         glEnable(GL_DEPTH_TEST);
@@ -63,132 +52,87 @@ int main()
 
         GLFWwindow* glfwWindow = glfwGetCurrentContext();
 
+        // ---------------------------
+        // Editor viewport + controller
+        // ---------------------------
         EditorViewport viewport(glfwWindow);
 
-        // =====================================
-        // ImGui init
-        // =====================================
+        auto editorController = std::make_unique<app::EditorFlyController>(glfwWindow);
+        viewport.setController(std::move(editorController));
+
+        // ---------------------------
+        // ImGui setup
+        // ---------------------------
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
-
         ImGuiIO& io = ImGui::GetIO();
-
-        //float dx = 0.0f;
-        //float dy = 0.0f;
-
-        //if (capturingMouse)
-        //{
-            //dx = io.MouseDelta.x;
-            //dy = -io.MouseDelta.y;
-        //}
-
-//controller.update(camera, dt, dx, dy);
 
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-
         ImGui::StyleColorsDark();
 
         ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
         ImGui_ImplOpenGL3_Init("#version 450");
 
-        // =====================================
-        // Scene framebuffer (editor viewport)
-        // =====================================
-        GLuint sceneFBO = 0;
-        GLuint sceneColor = 0;
-        GLuint sceneDepth = 0;
+        // ---------------------------
+        // Scene framebuffer (unused, viewport handles its own)
+        // ---------------------------
 
-        glGenFramebuffers(1, &sceneFBO);
-        glGenTextures(1, &sceneColor);
-        glGenRenderbuffers(1, &sceneDepth);
-
-        auto resizeSceneBuffer = [&](int w, int h)
-        {
-            if (w <= 0 || h <= 0) return;
-
-            glBindFramebuffer(GL_FRAMEBUFFER, sceneFBO);
-
-            glBindTexture(GL_TEXTURE_2D, sceneColor);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, sceneColor, 0);
-
-            glBindRenderbuffer(GL_RENDERBUFFER, sceneDepth);
-            glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, w, h);
-            glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, sceneDepth);
-
-            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-                throw std::runtime_error("Scene framebuffer incomplete");
-
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        };
-
-        // =====================================
+        // ---------------------------
         // Engine objects
-        // =====================================
-        engine::CubeMesh cube;
-        engine::BoxRenderer boxRenderer(cube);
+        // ---------------------------
+        CubeMesh cube;
+        BoxRenderer boxRenderer(cube);
 
-        engine::Maze maze(10, 10);
+        Maze maze(10, 10);
         maze.generate();
 
-        engine::MazeMesh mazeMesh;
+        MazeMesh mazeMesh;
         mazeMesh.build(maze);
 
-        engine::MazeCollider collider;
+        MazeCollider collider;
         collider.build(maze);
 
         float mazeWidth  = maze.width()  * CELL_SIZE;
         float mazeDepth  = maze.height() * CELL_SIZE;
 
-        // =====================================
+        // ---------------------------
         // Shaders
-        // =====================================
-        engine::Shader wallShader(
-            assetRoot / "shaders/wall.vert",
-            assetRoot / "shaders/wall.frag");
+        // ---------------------------
+        Shader wallShader(assetRoot / "shaders/wall.vert", assetRoot / "shaders/wall.frag");
+        Shader floorShader(assetRoot / "shaders/floor.vert", assetRoot / "shaders/floor.frag");
+        Shader ceilingShader(assetRoot / "shaders/ceiling.vert", assetRoot / "shaders/ceiling.frag");
 
-        engine::Shader floorShader(
-            assetRoot / "shaders/floor.vert",
-            assetRoot / "shaders/floor.frag");
-
-        engine::Shader ceilingShader(
-            assetRoot / "shaders/ceiling.vert",
-            assetRoot / "shaders/ceiling.frag");
-
-        // =====================================
+        // ---------------------------
         // Camera
-        // =====================================
+        // ---------------------------
         FPSCamera camera(60.0f, 16.f/9.f, 0.1f, 100.f);
         camera.setPosition({0.5f, 0.5f, 0.5f});
 
         float lastTime = (float)glfwGetTime();
 
-        // =====================================
+        // ---------------------------
         // Render loop
-        // =====================================
+        // ---------------------------
         while (!window.shouldClose())
         {
             float now = (float)glfwGetTime();
             float dt = now - lastTime;
             lastTime = now;
 
-            // ==============================
+            // ---------------------------
             // ImGui frame begin
-            // ==============================
+            // ---------------------------
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
 
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
 
-            // ==============================
+            // ---------------------------
             // Debug window
-            // ==============================
+            // ---------------------------
             ImGui::Begin("Debug");
-
             ImGui::Checkbox("Wireframe", &g_wireframe);
             ImGui::Text("FPS: %.1f", io.Framerate);
 
@@ -204,41 +148,45 @@ int main()
 
             ImGui::End();
 
-            // ======================================
-            // Game viewport
-            // ======================================
+            // ---------------------------
+            // Editor viewport rendering
+            // ---------------------------
             viewport.begin(camera);
+
+            // Clear viewport
+            glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (g_wireframe)
                 glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
             else
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-            glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
             glDisable(GL_CULL_FACE);
 
+            // Floor
             floorShader.bind();
             floorShader.setMat4("uView", camera.view());
             floorShader.setMat4("uProj", camera.projection());
-
             boxRenderer.draw(
                 floorShader,
                 glm::vec3(mazeWidth*0.5f, -0.05f, mazeDepth*0.5f),
-                glm::vec3(mazeWidth, 0.1f, mazeDepth));
+                glm::vec3(mazeWidth, 0.1f, mazeDepth)
+            );
 
+            // Ceiling
             ceilingShader.bind();
             ceilingShader.setMat4("uView", camera.view());
             ceilingShader.setMat4("uProj", camera.projection());
-
             boxRenderer.draw(
                 ceilingShader,
                 glm::vec3(mazeWidth*0.5f, WALL_HEIGHT+0.05f, mazeDepth*0.5f),
-                glm::vec3(mazeWidth, 0.1f, mazeDepth));
+                glm::vec3(mazeWidth, 0.1f, mazeDepth)
+            );
 
             glEnable(GL_CULL_FACE);
 
+            // Walls
             wallShader.bind();
             wallShader.setMat4("uView", camera.view());
             wallShader.setMat4("uProj", camera.projection());
@@ -246,9 +194,9 @@ int main()
 
             viewport.end();
 
-            // ==============================
+            // ---------------------------
             // ImGui render
-            // ==============================
+            // ---------------------------
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -264,10 +212,9 @@ int main()
             window.pollEvents();
         }
 
-
-        // =====================================
+        // ---------------------------
         // Shutdown
-        // =====================================
+        // ---------------------------
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplGlfw_Shutdown();
         ImGui::DestroyContext();
