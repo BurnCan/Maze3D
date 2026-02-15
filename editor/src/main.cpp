@@ -23,6 +23,7 @@
 #include "editor/EditorViewport.h"
 
 #include <app/controllers/EditorFlyController.h>
+#include <app/controllers/FPSController.h>
 #include <app/controllers/ICameraController.h>
 
 using namespace engine;
@@ -114,6 +115,8 @@ int main()
         // ---------------------------
         // Render loop
         // ---------------------------
+        int controllerType = 0; // 0 = EditorFly, 1 = FPS
+
         while (!window.shouldClose())
         {
             float now = (float)glfwGetTime();
@@ -144,6 +147,22 @@ int main()
                 maze.generate();
                 mazeMesh.build(maze);
                 collider.build(maze);
+            }
+
+            // ---------------------------
+            // Controller selection
+            // ---------------------------
+            const char* controllers[] = { "EditorFly", "FPS" };
+            if (ImGui::Combo("Controller", &controllerType, controllers, IM_ARRAYSIZE(controllers)))
+            {
+                glm::vec3 camPos = camera.position(); // preserve only position
+
+                if (controllerType == 0)
+                    viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+                else
+                    viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
+
+                camera.setPosition(camPos);
             }
 
             ImGui::End();
