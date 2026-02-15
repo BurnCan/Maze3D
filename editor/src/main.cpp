@@ -38,6 +38,43 @@ constexpr float WALL_THICKNESS = 0.1f;
 static bool g_wireframe = false; //wireframe
 static bool g_collision    = true;  //collisions
 
+static void updateCameraWithCollision(
+    EditorViewport& viewport,
+    engine::FPSCamera& camera,
+    engine::MazeCollider& collider,
+    bool enableCollision,
+    float playerRadius)
+{
+    // Store old position
+    glm::vec3 oldPos = camera.position();
+
+    // Let the viewport update the camera via its active controller
+    viewport.begin(camera);
+
+    // Desired new position
+    glm::vec3 desired = camera.position();
+
+    if (enableCollision)
+    {
+        glm::vec3 corrected = oldPos;
+
+        // Resolve X movement
+        corrected.x = desired.x;
+        collider.resolve(corrected, playerRadius);
+
+        // Resolve Z movement
+        corrected.z = desired.z;
+        collider.resolve(corrected, playerRadius);
+
+        camera.setPosition(corrected);
+    }
+    else
+    {
+        camera.setPosition(desired);
+    }
+}
+
+
 
 int main()
 {
@@ -187,27 +224,16 @@ int main()
             // ---------------------------
             // Update camera via viewport (handles controller internally)
             // ---------------------------
-            viewport.begin(camera); // internally calls controller->update
-
-            // ---------------------------
-            // Apply collision
-            // ---------------------------
-            glm::vec3 desired = camera.position();
             constexpr float PLAYER_RADIUS = 0.25f;
 
-            if (g_collision)
-            {
-                glm::vec3 corrected = oldPos;
-                corrected.x = desired.x;
-                collider.resolve(corrected, PLAYER_RADIUS);
-                corrected.z = desired.z;
-                collider.resolve(corrected, PLAYER_RADIUS);
-                camera.setPosition(corrected);
-            }
-            else
-            {
-                camera.setPosition(desired);
-            }
+            updateCameraWithCollision(
+                viewport,
+                camera,
+                collider,
+                g_collision,
+                PLAYER_RADIUS
+            );
+
 
             // ---------------------------
             // Render scene in viewport
