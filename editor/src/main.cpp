@@ -38,6 +38,13 @@ constexpr float WALL_THICKNESS = 0.1f;
 static bool g_wireframe = false; //wireframe
 static bool g_collision    = true;  //collisions
 
+enum class AppMode
+{
+    Editor,
+    Game
+};
+
+
 static void updateCameraWithCollision(
     EditorViewport& viewport,
     engine::FPSCamera& camera,
@@ -149,6 +156,9 @@ int main()
         FPSCamera camera(60.0f, 16.f/9.f, 0.1f, 100.f);
         camera.setPosition({0.5f, 0.5f, 0.5f});
 
+        AppMode mode = AppMode::Editor;
+
+
         float lastTime = (float)glfwGetTime();
 
         // ---------------------------
@@ -181,8 +191,27 @@ int main()
             ImGui::Checkbox("Wireframe", &g_wireframe);
 
             // Collision toggle
-            static bool g_collision = true;
-            ImGui::Checkbox("Enable Collision", &g_collision);
+            //static bool g_collision = true;
+            //ImGui::Checkbox("Enable Collision", &g_collision);
+
+            ImGui::Separator();
+            ImGui::Text("Mode");
+
+            bool isGameMode = (mode == AppMode::Game);
+
+            if (ImGui::Checkbox("Game Mode", &isGameMode))
+            {
+                if (isGameMode)
+                {
+                    mode = AppMode::Game;
+                    viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
+                }
+                else
+                {
+                    mode = AppMode::Editor;
+                    viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+                }
+            }
 
             ImGui::Text("FPS: %.1f", io.Framerate);
 
@@ -198,21 +227,21 @@ int main()
             }
 
             // Controller selection
-            static int controllerIndex = 0; // 0 = EditorFly, 1 = FPS
-            const char* controllerNames[] = { "EditorFly", "FPS" };
-            if (ImGui::Combo("Controller", &controllerIndex, controllerNames, IM_ARRAYSIZE(controllerNames)))
-            {
+            //static int controllerIndex = 0; // 0 = EditorFly, 1 = FPS
+            //const char* controllerNames[] = { "EditorFly", "FPS" };
+            //if (ImGui::Combo("Controller", &controllerIndex, controllerNames, IM_ARRAYSIZE(controllerNames)))
+            //{
                 // Switch controller
-                switch (controllerIndex)
-                {
-                    case 0:
-                        viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
-                        break;
-                    case 1:
-                        viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
-                        break;
-                }
-            }
+                //switch (controllerIndex)
+                //{
+                    //case 0:
+                        //viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+                        //break;
+                    //case 1:
+                        //viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
+                       // break;
+                //}
+            //}
 
             ImGui::End();
 
@@ -222,17 +251,20 @@ int main()
             glm::vec3 oldPos = camera.position();
 
             // ---------------------------
-            // Update camera via viewport (handles controller internally)
+            // Update camera via Game Mode
             // ---------------------------
             constexpr float PLAYER_RADIUS = 0.25f;
+
+            bool collisionsEnabled = (mode == AppMode::Game);
 
             updateCameraWithCollision(
                 viewport,
                 camera,
                 collider,
-                g_collision,
+                collisionsEnabled,
                 PLAYER_RADIUS
             );
+
 
 
             // ---------------------------
