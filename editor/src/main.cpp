@@ -34,8 +34,10 @@ constexpr float CELL_SIZE      = 1.0f;
 constexpr float WALL_HEIGHT    = 1.0f;
 constexpr float WALL_THICKNESS = 0.1f;
 
-// Global wireframe toggle
-static bool g_wireframe = false;
+// Global toggles
+static bool g_wireframe = false; //wireframe
+static bool g_collision    = true;  //collisions
+
 
 int main()
 {
@@ -119,8 +121,11 @@ int main()
 
         while (!window.shouldClose())
         {
+            // ---------------------------
+            // Time
+            // ---------------------------
             float now = (float)glfwGetTime();
-            float dt = now - lastTime;
+            float dt  = now - lastTime;
             lastTime = now;
 
             // ---------------------------
@@ -137,11 +142,17 @@ int main()
             // ---------------------------
             ImGui::Begin("Debug");
             ImGui::Checkbox("Wireframe", &g_wireframe);
+
+            // Collision toggle
+            static bool g_collision = true;
+            ImGui::Checkbox("Enable Collision", &g_collision);
+
             ImGui::Text("FPS: %.1f", io.Framerate);
 
             auto p = camera.position();
             ImGui::Text("Camera: %.2f %.2f %.2f", p.x, p.y, p.z);
 
+            // Regenerate maze
             if (ImGui::Button("Regenerate Maze"))
             {
                 maze.generate();
@@ -149,30 +160,58 @@ int main()
                 collider.build(maze);
             }
 
-            // ---------------------------
             // Controller selection
-            // ---------------------------
-            const char* controllers[] = { "EditorFly", "FPS" };
-            if (ImGui::Combo("Controller", &controllerType, controllers, IM_ARRAYSIZE(controllers)))
+            static int controllerIndex = 0; // 0 = EditorFly, 1 = FPS
+            const char* controllerNames[] = { "EditorFly", "FPS" };
+            if (ImGui::Combo("Controller", &controllerIndex, controllerNames, IM_ARRAYSIZE(controllerNames)))
             {
-                glm::vec3 camPos = camera.position(); // preserve only position
-
-                if (controllerType == 0)
-                    viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
-                else
-                    viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
-
-                camera.setPosition(camPos);
+                // Switch controller
+                switch (controllerIndex)
+                {
+                    case 0:
+                        viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+                        break;
+                    case 1:
+                        viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
+                        break;
+                }
             }
 
             ImGui::End();
 
             // ---------------------------
-            // Editor viewport rendering
+            // Store old camera position
             // ---------------------------
-            viewport.begin(camera);
+            glm::vec3 oldPos = camera.position();
 
-            // Clear viewport
+            // ---------------------------
+            // Update camera via viewport (handles controller internally)
+            // ---------------------------
+            viewport.begin(camera); // internally calls controller->update
+
+            // ---------------------------
+            // Apply collision
+            // ---------------------------
+            glm::vec3 desired = camera.position();
+            constexpr float PLAYER_RADIUS = 0.25f;
+
+            if (g_collision)
+            {
+                glm::vec3 corrected = oldPos;
+                corrected.x = desired.x;
+                collider.resolve(corrected, PLAYER_RADIUS);
+                corrected.z = desired.z;
+                collider.resolve(corrected, PLAYER_RADIUS);
+                camera.setPosition(corrected);
+            }
+            else
+            {
+                camera.setPosition(desired);
+            }
+
+            // ---------------------------
+            // Render scene in viewport
+            // ---------------------------
             glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
