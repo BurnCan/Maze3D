@@ -150,9 +150,14 @@ int main()
         float mazeWidth  = maze.width()  * CELL_SIZE;
         float mazeDepth  = maze.height() * CELL_SIZE;
 
-        Shader wallShader(assetRoot / "shaders/hedge.vert", assetRoot / "shaders/hedge.frag");
+        Shader wallShader(assetRoot / "shaders/wall.vert", assetRoot / "shaders/wall.frag");
+        Shader wall2Shader(assetRoot / "shaders/wall2.vert", assetRoot / "shaders/wall2.frag"); // bricks
+        Shader hedgeShader(assetRoot / "shaders/hedge.vert", assetRoot / "shaders/hedge.frag");
         Shader floorShader(assetRoot / "shaders/floor.vert", assetRoot / "shaders/floor.frag");
         Shader ceilingShader(assetRoot / "shaders/ceiling.vert", assetRoot / "shaders/ceiling.frag");
+        Shader playerShader(assetRoot / "shaders/player.vert", assetRoot / "shaders/player.frag");
+        Shader player2Shader(assetRoot / "shaders/player2.vert", assetRoot / "shaders/player2.frag");
+        Shader player3Shader(assetRoot / "shaders/player3.vert", assetRoot / "shaders/player3.frag");
 
         // ---------------------------
         // Camera
@@ -271,15 +276,7 @@ int main()
 
 
 
-                    // Draw player capsule
-                    //glm::vec3 capsulePos = playerPos;
-                    //capsulePos.y = PLAYER_HEIGHT * 0.5f;
-                    //glm::mat4 model = glm::translate(glm::mat4(1.0f), capsulePos);
-                    //ceilingShader.bind();
-                    //ceilingShader.setMat4("uView", camera.view());
-                    //ceilingShader.setMat4("uProj", camera.projection());
-                    //ceilingShader.setMat4("uModel", model);
-                    //capsuleMesh.draw();
+
                 }
             }
 
@@ -309,10 +306,20 @@ int main()
 
             glEnable(GL_CULL_FACE);
 
-            wallShader.bind();
-            wallShader.setMat4("uView", camera.view());
-            wallShader.setMat4("uProj", camera.projection());
-            mazeMesh.draw(wallShader);
+            wall2Shader.bind();
+            glm::mat4 model = glm::mat4(1.0f); // identity, or translate/scale as needed
+            wall2Shader.setMat4("uModel", model);
+            wall2Shader.setMat4("uView", camera.view());
+            wall2Shader.setMat4("uProj", camera.projection());
+
+            wall2Shader.setVec3("uCameraPos", camera.position());
+            wall2Shader.setFloat("uTime", (float)glfwGetTime());
+
+            // Optional effects
+            wall2Shader.setBool("useGlow", true);
+            wall2Shader.setInt("colorMode", 0); // 0=cool, 1=warm, 2=neon
+
+            mazeMesh.draw(wall2Shader);
 
             //Draw player capsule
             if (mode == AppMode::Game)
@@ -322,10 +329,16 @@ int main()
 
                 glm::mat4 model = glm::translate(glm::mat4(1.0f), capsulePos);
 
-                ceilingShader.bind();
-                ceilingShader.setMat4("uView", camera.view());
-                ceilingShader.setMat4("uProj", camera.projection());
-                ceilingShader.setMat4("uModel", model);
+                player3Shader.bind();
+                player3Shader.setMat4("uView", camera.view());
+                player3Shader.setMat4("uProj", camera.projection());
+                player3Shader.setMat4("uModel", model);
+                player3Shader.setVec3("uCameraPos", camera.position());
+                player3Shader.setFloat("uTime", (float)glfwGetTime());
+
+                // Optional effects
+                player3Shader.setBool("useGlow", true);
+                player3Shader.setInt("colorMode", 2); // 0=cool, 1=warm, 2=neon
 
                 capsuleMesh.draw();
             }

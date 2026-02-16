@@ -83,6 +83,26 @@ namespace engine {
         glUniformMatrix4fv(loc, 1, GL_FALSE, &mat[0][0]);
     }
 
+    void Shader::setFloat(const std::string& name, float value) const
+    {
+        int loc = glGetUniformLocation(m_program, name.c_str());
+        if (loc != -1) {
+            glUniform1f(loc, value);
+        }
+    }
+
+    void Shader::setInt(const std::string& name, int value) const
+    {
+        int loc = glGetUniformLocation(m_program, name.c_str());
+        if (loc != -1) glUniform1i(loc, value);
+    }
+
+    void Shader::setBool(const std::string& name, bool value) const
+    {
+        int loc = glGetUniformLocation(m_program, name.c_str());
+        if (loc != -1) glUniform1i(loc, value ? 1 : 0);
+    }
+
     void Shader::setVec3(const std::string& name,
         const glm::vec3& vec) const
     {
