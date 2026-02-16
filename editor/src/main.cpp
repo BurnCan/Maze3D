@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
 #include <imgui.h>
@@ -14,6 +15,7 @@
 #include "engine/window/Window.h"
 #include "engine/render/Shader.h"
 #include "engine/render/CubeMesh.h"
+#include "engine/render/CapsuleMesh.h"
 #include "engine/render/BoxRenderer.h"
 #include "engine/maze/Maze.h"
 #include "engine/maze/MazeMesh.h"
@@ -21,7 +23,6 @@
 #include "engine/scene/FPSCamera.h"
 
 #include "editor/EditorViewport.h"
-
 #include <app/controllers/EditorFlyController.h>
 #include <app/controllers/FPSController.h>
 #include <app/controllers/ICameraController.h>
@@ -30,13 +31,22 @@ using namespace engine;
 
 const std::filesystem::path assetRoot = MAZE3D_ASSET_ROOT;
 
+// ---------------------------
+// Constants
+// ---------------------------
 constexpr float CELL_SIZE      = 1.0f;
 constexpr float WALL_HEIGHT    = 1.0f;
 constexpr float WALL_THICKNESS = 0.1f;
 
+constexpr float PLAYER_RADIUS     = 0.25f;
+constexpr float PLAYER_HEIGHT     = 0.8f;
+constexpr float PLAYER_EYE_OFFSET = 0.6f;
+
+// ---------------------------
 // Global toggles
-static bool g_wireframe = false; //wireframe
-static bool g_collision    = true;  //collisions
+// ---------------------------
+static bool g_wireframe  = false;
+static bool g_collision  = true;
 
 enum class AppMode
 {
@@ -44,35 +54,38 @@ enum class AppMode
     Game
 };
 
-
+// ---------------------------
+// Camera update + collisions
+// ---------------------------
 static void updateCameraWithCollision(
     EditorViewport& viewport,
-    engine::FPSCamera& camera,
-    engine::MazeCollider& collider,
-    bool enableCollision,
-    float playerRadius)
+    FPSCamera& camera,
+    MazeCollider& collider,
+    bool enableCollision)
 {
-    // Store old position
     glm::vec3 oldPos = camera.position();
 
-    // Let the viewport update the camera via its active controller
+    // Let the viewport update camera via its controller
     viewport.begin(camera);
 
-    // Desired new position
     glm::vec3 desired = camera.position();
 
     if (enableCollision)
     {
-        glm::vec3 corrected = oldPos;
+        glm::vec3 baseOld = oldPos; baseOld.y = 0.0f;
+        glm::vec3 baseDesired = desired; baseDesired.y = 0.0f;
 
-        // Resolve X movement
-        corrected.x = desired.x;
-        collider.resolve(corrected, playerRadius);
+        glm::vec3 corrected = baseOld;
 
-        // Resolve Z movement
-        corrected.z = desired.z;
-        collider.resolve(corrected, playerRadius);
+        // Resolve X
+        corrected.x = baseDesired.x;
+        collider.resolve(corrected, PLAYER_RADIUS);
 
+        // Resolve Z
+        corrected.z = baseDesired.z;
+        collider.resolve(corrected, PLAYER_RADIUS);
+
+        corrected.y = PLAYER_EYE_OFFSET;
         camera.setPosition(corrected);
     }
     else
@@ -81,8 +94,9 @@ static void updateCameraWithCollision(
     }
 }
 
-
-
+// ---------------------------
+// MAIN
+// ---------------------------
 int main()
 {
     try
@@ -91,7 +105,6 @@ int main()
         // Window / OpenGL setup
         // ---------------------------
         Window window(1280, 720, "Maze3D Editor");
-
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glCullFace(GL_BACK);
@@ -103,9 +116,7 @@ int main()
         // Editor viewport + controller
         // ---------------------------
         EditorViewport viewport(glfwWindow);
-
-        auto editorController = std::make_unique<app::EditorFlyController>(glfwWindow);
-        viewport.setController(std::move(editorController));
+        viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
 
         // ---------------------------
         // ImGui setup
@@ -113,17 +124,11 @@ int main()
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
-
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
         ImGui::StyleColorsDark();
-
         ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
         ImGui_ImplOpenGL3_Init("#version 450");
-
-        // ---------------------------
-        // Scene framebuffer (unused, viewport handles its own)
-        // ---------------------------
 
         // ---------------------------
         // Engine objects
@@ -140,13 +145,12 @@ int main()
         MazeCollider collider;
         collider.build(maze);
 
+        CapsuleMesh capsuleMesh(PLAYER_RADIUS, PLAYER_HEIGHT);
+
         float mazeWidth  = maze.width()  * CELL_SIZE;
         float mazeDepth  = maze.height() * CELL_SIZE;
 
-        // ---------------------------
-        // Shaders
-        // ---------------------------
-        Shader wallShader(assetRoot / "shaders/wall.vert", assetRoot / "shaders/wall.frag");
+        Shader wallShader(assetRoot / "shaders/hedge.vert", assetRoot / "shaders/hedge.frag");
         Shader floorShader(assetRoot / "shaders/floor.vert", assetRoot / "shaders/floor.frag");
         Shader ceilingShader(assetRoot / "shaders/ceiling.vert", assetRoot / "shaders/ceiling.frag");
 
@@ -154,57 +158,41 @@ int main()
         // Camera
         // ---------------------------
         FPSCamera camera(60.0f, 16.f/9.f, 0.1f, 100.f);
-        camera.setPosition({0.5f, 0.5f, 0.5f});
+        camera.setPosition({0.5f, PLAYER_EYE_OFFSET, 0.5f});
 
         AppMode mode = AppMode::Editor;
-
-
         float lastTime = (float)glfwGetTime();
 
         // ---------------------------
-        // Render loop
+        // Player tracking
         // ---------------------------
-        int controllerType = 0; // 0 = EditorFly, 1 = FPS
+        static glm::vec3 playerPos = glm::vec3(0.5f, PLAYER_EYE_OFFSET, 0.5f);
 
         while (!window.shouldClose())
         {
-            // ---------------------------
-            // Time
-            // ---------------------------
             float now = (float)glfwGetTime();
             float dt  = now - lastTime;
             lastTime = now;
 
-            // ---------------------------
-            // ImGui frame begin
-            // ---------------------------
+            // --- ImGui frame ---
             ImGui_ImplOpenGL3_NewFrame();
             ImGui_ImplGlfw_NewFrame();
             ImGui::NewFrame();
-
             ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
 
-            // ---------------------------
-            // Debug window
-            // ---------------------------
+            // --- Debug window ---
             ImGui::Begin("Debug");
+
+            // Wireframe / mode toggles
             ImGui::Checkbox("Wireframe", &g_wireframe);
-
-            // Collision toggle
-            //static bool g_collision = true;
-            //ImGui::Checkbox("Enable Collision", &g_collision);
-
-            ImGui::Separator();
-            ImGui::Text("Mode");
-
             bool isGameMode = (mode == AppMode::Game);
-
             if (ImGui::Checkbox("Game Mode", &isGameMode))
             {
                 if (isGameMode)
                 {
                     mode = AppMode::Game;
                     viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
+                    camera.setPosition({0.5f, PLAYER_EYE_OFFSET, 0.5f});
                 }
                 else
                 {
@@ -213,12 +201,27 @@ int main()
                 }
             }
 
-            ImGui::Text("FPS: %.1f", io.Framerate);
+            // Camera info
+            auto camPos = camera.position();
+            ImGui::Text("Camera Pos: %.2f %.2f %.2f", camPos.x, camPos.y, camPos.z);
+            ImGui::Text("Camera Forward: %.2f %.2f %.2f", camera.forward().x, camera.forward().y, camera.forward().z);
+            ImGui::Text("Camera Yaw: %.2f, Pitch: %.2f", camera.getYaw(), camera.getPitch());
 
-            auto p = camera.position();
-            ImGui::Text("Camera: %.2f %.2f %.2f", p.x, p.y, p.z);
+            // Player info
+            ImGui::Text("Player Eye Pos: %.2f %.2f %.2f", playerPos.x, playerPos.y, playerPos.z);
 
-            // Regenerate maze
+            // FPSController info
+            auto* fps = dynamic_cast<app::FPSController*>(viewport.getController());
+            float distance = 0.0f;
+            double scrollDelta = 0.0;
+            if (fps)
+            {
+                distance = fps->cameraDistance();
+                scrollDelta = fps->scrollDelta();
+            }
+            ImGui::Text("Camera Distance (scroll zoom): %.2f", distance);
+            ImGui::Text("Scroll Delta: %.2f", scrollDelta);
+
             if (ImGui::Button("Regenerate Maze"))
             {
                 maze.generate();
@@ -226,96 +229,112 @@ int main()
                 collider.build(maze);
             }
 
-            // Controller selection
-            //static int controllerIndex = 0; // 0 = EditorFly, 1 = FPS
-            //const char* controllerNames[] = { "EditorFly", "FPS" };
-            //if (ImGui::Combo("Controller", &controllerIndex, controllerNames, IM_ARRAYSIZE(controllerNames)))
-            //{
-                // Switch controller
-                //switch (controllerIndex)
-                //{
-                    //case 0:
-                        //viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
-                        //break;
-                    //case 1:
-                        //viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
-                       // break;
-                //}
-            //}
-
             ImGui::End();
 
-            // ---------------------------
-            // Store old camera position
-            // ---------------------------
-            glm::vec3 oldPos = camera.position();
-
-            // ---------------------------
-            // Update camera via Game Mode
-            // ---------------------------
-            constexpr float PLAYER_RADIUS = 0.25f;
-
+            // --- Camera update ---
             bool collisionsEnabled = (mode == AppMode::Game);
+            updateCameraWithCollision(viewport, camera, collider, collisionsEnabled);
 
-            updateCameraWithCollision(
-                viewport,
-                camera,
-                collider,
-                collisionsEnabled,
-                PLAYER_RADIUS
-            );
+            // Track the player position separately, NOT from camera.position()
+            static glm::vec3 playerPos = glm::vec3(0.5f, 0.0f, 0.5f); // fixed base position
+
+            // Update playerPos based on controller input
+            if (mode == AppMode::Game)
+            {
+                auto* fps = dynamic_cast<app::FPSController*>(viewport.getController());
+                if (fps)
+                {
+                    // Movement
+                    glm::vec3 delta = fps->movementDelta(camera, dt);
+                    // Move player
+                    playerPos += delta;
+
+                    // Resolve collision on player
+                    if (g_collision)
+                        collider.resolve(playerPos, PLAYER_RADIUS);
+
+                    // Now compute camera AFTER player is corrected
+                    //glm::vec3 playerCenter = playerPos;
+                    //playerCenter.y = PLAYER_HEIGHT * 0.5f;
+
+
+                    float distance = fps->cameraDistance();
+
+                    glm::vec3 playerCenter = playerPos;
+                    playerCenter.y = PLAYER_HEIGHT * 0.5f;
+
+                    glm::vec3 camDir = glm::normalize(camera.forward());
+                    glm::vec3 camPos = playerCenter - camDir * distance;
+
+                    camera.setPosition(camPos);
+                    camera.setViewMatrix(glm::lookAt(camPos, playerCenter, glm::vec3(0,1,0)));
 
 
 
-            // ---------------------------
-            // Render scene in viewport
-            // ---------------------------
+                    // Draw player capsule
+                    //glm::vec3 capsulePos = playerPos;
+                    //capsulePos.y = PLAYER_HEIGHT * 0.5f;
+                    //glm::mat4 model = glm::translate(glm::mat4(1.0f), capsulePos);
+                    //ceilingShader.bind();
+                    //ceilingShader.setMat4("uView", camera.view());
+                    //ceilingShader.setMat4("uProj", camera.projection());
+                    //ceilingShader.setMat4("uModel", model);
+                    //capsuleMesh.draw();
+                }
+            }
+
+
+            // --- Render maze ---
             glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-            if (g_wireframe)
-                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-            else
-                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            if (g_wireframe) glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            else glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
             glDisable(GL_CULL_FACE);
 
-            // Floor
             floorShader.bind();
             floorShader.setMat4("uView", camera.view());
             floorShader.setMat4("uProj", camera.projection());
-            boxRenderer.draw(
-                floorShader,
-                glm::vec3(mazeWidth*0.5f, -0.05f, mazeDepth*0.5f),
-                glm::vec3(mazeWidth, 0.1f, mazeDepth)
-            );
+            boxRenderer.draw(floorShader,
+                            glm::vec3(mazeWidth*0.5f, -0.05f, mazeDepth*0.5f),
+                            glm::vec3(mazeWidth, 0.1f, mazeDepth));
 
-            // Ceiling
             ceilingShader.bind();
             ceilingShader.setMat4("uView", camera.view());
             ceilingShader.setMat4("uProj", camera.projection());
-            boxRenderer.draw(
-                ceilingShader,
-                glm::vec3(mazeWidth*0.5f, WALL_HEIGHT+0.05f, mazeDepth*0.5f),
-                glm::vec3(mazeWidth, 0.1f, mazeDepth)
-            );
+            boxRenderer.draw(ceilingShader,
+                            glm::vec3(mazeWidth*0.5f, WALL_HEIGHT+0.05f, mazeDepth*0.5f),
+                            glm::vec3(mazeWidth, 0.1f, mazeDepth));
 
             glEnable(GL_CULL_FACE);
 
-            // Walls
             wallShader.bind();
             wallShader.setMat4("uView", camera.view());
             wallShader.setMat4("uProj", camera.projection());
             mazeMesh.draw(wallShader);
 
+            //Draw player capsule
+            if (mode == AppMode::Game)
+            {
+                glm::vec3 capsulePos = playerPos;
+                capsulePos.y = PLAYER_HEIGHT * 0.5f;
+
+                glm::mat4 model = glm::translate(glm::mat4(1.0f), capsulePos);
+
+                ceilingShader.bind();
+                ceilingShader.setMat4("uView", camera.view());
+                ceilingShader.setMat4("uProj", camera.projection());
+                ceilingShader.setMat4("uModel", model);
+
+                capsuleMesh.draw();
+            }
+
             viewport.end();
 
-            // ---------------------------
-            // ImGui render
-            // ---------------------------
+            // --- ImGui render ---
             ImGui::Render();
             ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
             if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
             {
                 GLFWwindow* backup = glfwGetCurrentContext();

@@ -11,6 +11,8 @@ class FPSCamera : public Camera
 public:
     FPSCamera(float fovDeg, float aspect, float nearPlane, float farPlane);
 
+    void setViewMatrix(const glm::mat4& view) { m_view = view; }
+
 
 
     // --- Camera interface ---
@@ -28,8 +30,15 @@ public:
     void moveUp(float amount);
     void rotate(float dx, float dy);
 
+    // Getters for mouse scroll
+    glm::vec3 forward() const { return m_front; }
+    glm::vec3 right() const { return m_right; }
+    glm::vec3 up() const { return m_up; }
+    // Yaw/pitch getter for third person
+    float getYaw() const { return m_yaw; }
+    float getPitch() const { return m_pitch; }
 
-private:
+
     void updateVectors();
 
 private:

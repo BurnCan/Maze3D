@@ -19,7 +19,14 @@ public:
 
 
 
+
+
     void begin(engine::FPSCamera& camera);  // now matches global type
+
+     //  Getter for controller
+    app::ICameraController* getController() const {
+        return m_controller.get();
+    }
 
     // Public setter for the controller
      void setController(std::unique_ptr<app::ICameraController> controller)

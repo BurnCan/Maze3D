@@ -8,6 +8,7 @@ target_sources(maze_engine
 
         src/render/Shader.cpp
         src/render/CubeMesh.cpp
+        src/render/CapsuleMesh.cpp
         src/render/BoxRenderer.cpp
 
 
