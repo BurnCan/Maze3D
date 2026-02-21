@@ -121,17 +121,23 @@ void MazeMesh::rebuildCell(int x, int y, const Maze& maze)
         tri(0,1,5); tri(0,5,4);
     };
 
+    // Always render North + West to avoid duplicates
     if (cell.walls & North)
-        pushBox({ fx + CELL_SIZE*0.5f, h, fz }, { CELL_SIZE*0.5f, h, t });
+        pushBox({ fx + CELL_SIZE*0.5f, h, fz },
+                { CELL_SIZE*0.5f, h, t });
 
     if (cell.walls & West)
-        pushBox({ fx, h, fz + CELL_SIZE*0.5f }, { t, h, CELL_SIZE*0.5f });
+        pushBox({ fx, h, fz + CELL_SIZE*0.5f },
+                { t, h, CELL_SIZE*0.5f });
 
-    if ((cell.walls & South) && y == maze.height()-1)
-        pushBox({ fx + CELL_SIZE*0.5f, h, fz + CELL_SIZE }, { CELL_SIZE*0.5f, h, t });
+    // Render outer borders
+    if (y == maze.height() - 1 && (cell.walls & South))
+        pushBox({ fx + CELL_SIZE*0.5f, h, fz + CELL_SIZE },
+                { CELL_SIZE*0.5f, h, t });
 
-    if ((cell.walls & East) && x == maze.width()-1)
-        pushBox({ fx + CELL_SIZE, h, fz + CELL_SIZE*0.5f }, { t, h, CELL_SIZE*0.5f });
+    if (x == maze.width() - 1 && (cell.walls & East))
+        pushBox({ fx + CELL_SIZE, h, fz + CELL_SIZE*0.5f },
+                { t, h, CELL_SIZE*0.5f });
 
     auto key = std::make_pair(x,y);
 
