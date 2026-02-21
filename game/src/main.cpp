@@ -186,8 +186,17 @@ int main()
 
             // walls
             wallShader.bind();
+            glm::mat4 model = glm::mat4(1.0f); // identity, or translate/scale as needed
+            wallShader.setMat4("uModel", model);
             wallShader.setMat4("uView", camera.view());
             wallShader.setMat4("uProj", camera.projection());
+
+            wallShader.setVec3("uCameraPos", camera.position());
+            wallShader.setFloat("uTime", (float)glfwGetTime());
+
+            // Optional effects
+            wallShader.setBool("useGlow", true);
+            wallShader.setInt("colorMode", 0); // 0=cool, 1=warm, 2=neon
 
             mazeMesh.draw(wallShader);
 

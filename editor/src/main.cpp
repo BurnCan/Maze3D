@@ -42,6 +42,14 @@ constexpr float PLAYER_RADIUS     = 0.25f;
 constexpr float PLAYER_HEIGHT     = 0.8f;
 constexpr float PLAYER_EYE_OFFSET = 0.6f;
 
+struct SelectedWall {
+    int x = -1;
+    int y = -1;
+    int dir = 0; // 0=North,1=East,2=South,3=West
+};
+
+static SelectedWall g_selectedWall;
+
 // ---------------------------
 // Global toggles
 // ---------------------------
@@ -236,6 +244,60 @@ int main()
 
             ImGui::End();
 
+            ImGui::Text("Maze Editor");
+
+// Cell selection
+static int editX = 0;
+static int editY = 0;
+ImGui::InputInt("Cell X", &editX);
+ImGui::InputInt("Cell Y", &editY);
+editX = glm::clamp(editX, 0, maze.width()-1);
+editY = glm::clamp(editY, 0, maze.height()-1);
+
+// Wall direction
+static int wallDir = 0;
+const char* dirs[] = { "North","East","South","West" };
+ImGui::Combo("Wall", &wallDir, dirs, 4);
+
+// Add/Remove wall buttons
+if (ImGui::Button("Add Wall")) {
+
+    Direction dir = static_cast<Direction>(1 << wallDir);
+
+    WallEdit edit{ editX, editY, dir, true };
+
+    maze.addWall(editX, editY, dir);
+    mazeMesh.editWall(maze, edit);
+
+    mazeMesh.editCell(edit.x, edit.y, maze);
+
+    switch (edit.dir) {
+        case North: if (edit.y > 0) mazeMesh.editCell(edit.x, edit.y-1, maze); break;
+        case West:  if (edit.x > 0) mazeMesh.editCell(edit.x-1, edit.y, maze); break;
+        case South: if (edit.y < maze.height()-1) mazeMesh.editCell(edit.x, edit.y+1, maze); break;
+        case East:  if (edit.x < maze.width()-1) mazeMesh.editCell(edit.x+1, edit.y, maze); break;
+    }
+
+
+    collider.build(maze); // rebuild entire collider
+}
+
+ImGui::SameLine();
+
+if (ImGui::Button("Remove Wall")) {
+
+    Direction dir = static_cast<Direction>(1 << wallDir);
+
+    WallEdit edit{ editX, editY, dir, false };
+
+    maze.removeWall(editX, editY, dir);
+    mazeMesh.editWall(maze, edit);
+
+    collider.build(maze); // rebuild entire collider
+}
+
+
+
             // --- Camera update ---
             bool collisionsEnabled = (mode == AppMode::Game);
             updateCameraWithCollision(viewport, camera, collider, collisionsEnabled);
@@ -306,20 +368,20 @@ int main()
 
             glEnable(GL_CULL_FACE);
 
-            wall2Shader.bind();
+            hedgeShader.bind();
             glm::mat4 model = glm::mat4(1.0f); // identity, or translate/scale as needed
-            wall2Shader.setMat4("uModel", model);
-            wall2Shader.setMat4("uView", camera.view());
-            wall2Shader.setMat4("uProj", camera.projection());
+            hedgeShader.setMat4("uModel", model);
+            hedgeShader.setMat4("uView", camera.view());
+            hedgeShader.setMat4("uProj", camera.projection());
 
-            wall2Shader.setVec3("uCameraPos", camera.position());
-            wall2Shader.setFloat("uTime", (float)glfwGetTime());
+            hedgeShader.setVec3("uCameraPos", camera.position());
+            hedgeShader.setFloat("uTime", (float)glfwGetTime());
 
             // Optional effects
-            wall2Shader.setBool("useGlow", true);
-            wall2Shader.setInt("colorMode", 0); // 0=cool, 1=warm, 2=neon
+            hedgeShader.setBool("useGlow", true);
+            hedgeShader.setInt("colorMode", 0); // 0=cool, 1=warm, 2=neon
 
-            mazeMesh.draw(wall2Shader);
+            mazeMesh.draw(hedgeShader);
 
             //Draw player capsule
             if (mode == AppMode::Game)

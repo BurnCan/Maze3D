@@ -2,7 +2,6 @@
 
 #include <random>
 #include <algorithm>
-
 #include <stack>
 #include "engine/maze/MazeTypes.h"
 
@@ -28,10 +27,59 @@ int Maze::index(int x, int y) const
     return y * m_width + x;
 }
 
+// Read-only getter
 const Maze::Cell& Maze::cell(int x, int y) const
 {
     return m_cells[index(x, y)];
 }
+
+// --- New: editable wall helpers ---
+void Maze::addWall(int x, int y, Direction dir)
+{
+    if (!inBounds(x, y)) return;
+
+    m_cells[index(x, y)].walls |= dir;
+
+    int nx = x;
+    int ny = y;
+    Direction opposite;
+
+    switch (dir)
+    {
+        case North: ny -= 1; opposite = South; break;
+        case South: ny += 1; opposite = North; break;
+        case West:  nx -= 1; opposite = East;  break;
+        case East:  nx += 1; opposite = West;  break;
+        default: return;
+    }
+
+    if (inBounds(nx, ny))
+        m_cells[index(nx, ny)].walls |= opposite;
+}
+
+void Maze::removeWall(int x, int y, Direction dir)
+{
+    if (!inBounds(x, y)) return;
+
+    m_cells[index(x, y)].walls &= ~dir;
+
+    int nx = x;
+    int ny = y;
+    Direction opposite;
+
+    switch (dir)
+    {
+        case North: ny -= 1; opposite = South; break;
+        case South: ny += 1; opposite = North; break;
+        case West:  nx -= 1; opposite = East;  break;
+        case East:  nx += 1; opposite = West;  break;
+        default: return;
+    }
+
+    if (inBounds(nx, ny))
+        m_cells[index(nx, ny)].walls &= ~opposite;
+}
+
 
 void Maze::generate()
 {
@@ -45,16 +93,10 @@ void Maze::generate()
     carve(0, 0, rng);
 }
 
-
-
-//Recursive Bactracker
+// Recursive backtracker
 void Maze::carve(int x, int y, std::mt19937& rng)
-
 {
     m_cells[index(x, y)].visited = true;
-
-    static std::random_device rd;
-
 
     struct Step {
         int dx, dy;
@@ -75,19 +117,16 @@ void Maze::carve(int x, int y, std::mt19937& rng)
         int nx = x + s.dx;
         int ny = y + s.dy;
 
-        if (!inBounds(nx, ny))
-            continue;
+        if (!inBounds(nx, ny)) continue;
 
         auto& next = m_cells[index(nx, ny)];
-        if (next.visited)
-            continue;
+        if (next.visited) continue;
 
         // remove walls between cells
         m_cells[index(x, y)].walls &= ~s.dir;
         next.walls &= ~s.opposite;
 
         carve(nx, ny, rng);
-
     }
 }
 
