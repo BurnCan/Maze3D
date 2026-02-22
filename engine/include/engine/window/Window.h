@@ -2,6 +2,8 @@
 
 struct GLFWwindow;
 
+namespace engine {
+
 class Window {
 public:
     Window(
@@ -16,7 +18,10 @@ public:
     bool shouldClose() const;
     void pollEvents();
     void swapBuffers();
+    GLFWwindow* nativeHandle() const { return m_window; }
 
 private:
     GLFWwindow* m_window{};
 };
+
+} // namespace engine

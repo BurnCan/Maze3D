@@ -246,55 +246,55 @@ int main()
 
             ImGui::Text("Maze Editor");
 
-// Cell selection
-static int editX = 0;
-static int editY = 0;
-ImGui::InputInt("Cell X", &editX);
-ImGui::InputInt("Cell Y", &editY);
-editX = glm::clamp(editX, 0, maze.width()-1);
-editY = glm::clamp(editY, 0, maze.height()-1);
+            // Cell selection
+            static int editX = 0;
+            static int editY = 0;
+            ImGui::InputInt("Cell X", &editX);
+            ImGui::InputInt("Cell Y", &editY);
+            editX = glm::clamp(editX, 0, maze.width()-1);
+            editY = glm::clamp(editY, 0, maze.height()-1);
 
-// Wall direction
-static int wallDir = 0;
-const char* dirs[] = { "North","East","South","West" };
-ImGui::Combo("Wall", &wallDir, dirs, 4);
+            // Wall direction
+            static int wallDir = 0;
+            const char* dirs[] = { "North","East","South","West" };
+            ImGui::Combo("Wall", &wallDir, dirs, 4);
 
-// Add/Remove wall buttons
-if (ImGui::Button("Add Wall")) {
+            // Add/Remove wall buttons
+            if (ImGui::Button("Add Wall")) {
 
-    Direction dir = static_cast<Direction>(1 << wallDir);
+                Direction dir = static_cast<Direction>(1 << wallDir);
 
-    WallEdit edit{ editX, editY, dir, true };
+                WallEdit edit{ editX, editY, dir, true };
 
-    maze.addWall(editX, editY, dir);
-    mazeMesh.editWall(maze, edit);
+                maze.addWall(editX, editY, dir);
+                mazeMesh.editWall(maze, edit);
 
-    mazeMesh.editCell(edit.x, edit.y, maze);
+                mazeMesh.editCell(edit.x, edit.y, maze);
 
-    switch (edit.dir) {
-        case North: if (edit.y > 0) mazeMesh.editCell(edit.x, edit.y-1, maze); break;
-        case West:  if (edit.x > 0) mazeMesh.editCell(edit.x-1, edit.y, maze); break;
-        case South: if (edit.y < maze.height()-1) mazeMesh.editCell(edit.x, edit.y+1, maze); break;
-        case East:  if (edit.x < maze.width()-1) mazeMesh.editCell(edit.x+1, edit.y, maze); break;
-    }
+                switch (edit.dir) {
+                    case North: if (edit.y > 0) mazeMesh.editCell(edit.x, edit.y-1, maze); break;
+                    case West:  if (edit.x > 0) mazeMesh.editCell(edit.x-1, edit.y, maze); break;
+                    case South: if (edit.y < maze.height()-1) mazeMesh.editCell(edit.x, edit.y+1, maze); break;
+                    case East:  if (edit.x < maze.width()-1) mazeMesh.editCell(edit.x+1, edit.y, maze); break;
+                }
 
 
-    collider.build(maze); // rebuild entire collider
-}
+                collider.build(maze); // rebuild entire collider
+            }
 
-ImGui::SameLine();
+            ImGui::SameLine();
 
-if (ImGui::Button("Remove Wall")) {
+            if (ImGui::Button("Remove Wall")) {
 
-    Direction dir = static_cast<Direction>(1 << wallDir);
+                Direction dir = static_cast<Direction>(1 << wallDir);
 
-    WallEdit edit{ editX, editY, dir, false };
+                WallEdit edit{ editX, editY, dir, false };
 
-    maze.removeWall(editX, editY, dir);
-    mazeMesh.editWall(maze, edit);
+                maze.removeWall(editX, editY, dir);
+                mazeMesh.editWall(maze, edit);
 
-    collider.build(maze); // rebuild entire collider
-}
+                collider.build(maze); // rebuild entire collider
+            }
 
 
 

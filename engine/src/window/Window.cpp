@@ -4,6 +4,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+namespace engine {
+
 // window resize callback
 static void framebuffer_size_callback(GLFWwindow*, int width, int height)
 {
@@ -86,3 +88,5 @@ void Window::swapBuffers()
 {
     glfwSwapBuffers(m_window);
 }
+
+} // namespace engine

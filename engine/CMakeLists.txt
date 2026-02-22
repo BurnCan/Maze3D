@@ -10,6 +10,7 @@ target_sources(maze_engine
         src/render/CubeMesh.cpp
         src/render/CapsuleMesh.cpp
         src/render/BoxRenderer.cpp
+        src/render/DynamicMesh.cpp
 
 
         src/scene/FPSCamera.cpp
