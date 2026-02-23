@@ -108,6 +108,7 @@ void MeshSculptTool::updateDrag()
     glm::vec3 hitPoint = rayOrigin + rayDir * t;
     m_mesh.vertices()[m_selectedVertex] = hitPoint;
     m_mesh.upload(); // DynamicMesh uploads updated vertices to GPU
+    syncVerticesToText();
 }
 
 // ------------------------------------------------------------
@@ -118,32 +119,7 @@ void MeshSculptTool::endDrag()
     m_isDragging = false;
 }
 
-// ------------------------------------------------------------
-// Update interaction (click + drag)
-// ------------------------------------------------------------
-void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed)
-{
-    (void)dt;
 
-    // If camera is controlling, ignore sculpt tool input
-    if (!cameraControl)
-        return;
-
-    // --- If mouse just clicked and not dragging, select vertex ---
-    if (leftClickPressed && !m_isDragging)
-    {
-        pickVertex();        // this preserves your original click-to-select
-        beginDrag();         // begin dragging immediately after selection
-    }
-
-    // --- If currently dragging, move vertex with mouse ---
-    if (m_isDragging)
-        updateDrag();
-
-    // --- If dragging but mouse released, stop dragging ---
-    if (m_isDragging && !leftClickPressed)
-        endDrag();
-}
 
 // ------------------------------------------------------------
 // Initialize Default Cube
@@ -208,6 +184,46 @@ void MeshSculptTool::parseMeshText(const char* vertsText, const char* indicesTex
         m_mesh.setIndices(indices);
         m_mesh.upload();
     }
+}
+
+void MeshSculptTool::syncVerticesToText()
+{
+    std::ostringstream vertStream;
+
+    for (const auto& v : m_mesh.vertices())
+        vertStream << v.x << " " << v.y << " " << v.z << "\n";
+
+    std::string text = vertStream.str();
+
+    std::memset(m_verticesBuf, 0, sizeof(m_verticesBuf));
+    std::strncpy(m_verticesBuf, text.c_str(), sizeof(m_verticesBuf) - 1);
+}
+
+// ------------------------------------------------------------
+// Update interaction (click + drag)
+// ------------------------------------------------------------
+void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed)
+{
+    (void)dt;
+
+    // If camera is controlling, ignore sculpt tool input
+    if (!cameraControl)
+        return;
+
+    // --- If mouse just clicked and not dragging, select vertex ---
+    if (leftClickPressed && !m_isDragging)
+    {
+        pickVertex();        // this preserves your original click-to-select
+        beginDrag();         // begin dragging immediately after selection
+    }
+
+    // --- If currently dragging, move vertex with mouse ---
+    if (m_isDragging)
+        updateDrag();
+
+    // --- If dragging but mouse released, stop dragging ---
+    if (m_isDragging && !leftClickPressed)
+        endDrag();
 }
 
 // ------------------------------------------------------------
@@ -276,6 +292,7 @@ void MeshSculptTool::renderImGui()
 
         if (ImGui::DragFloat3("Edit Position", &v.x, 0.01f))
             m_mesh.upload();
+            syncVerticesToText();
     }
     else
     {

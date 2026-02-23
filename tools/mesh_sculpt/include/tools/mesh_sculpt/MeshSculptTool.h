@@ -31,6 +31,8 @@ private:
     void updateDrag();
     void endDrag();
 
+    void syncVerticesToText();
+
     glm::vec3 getCameraRayOrigin() const;
     glm::vec3 getCameraRayDirection() const;
 
