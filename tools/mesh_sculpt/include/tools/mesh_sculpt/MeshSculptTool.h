@@ -17,27 +17,40 @@ public:
     void update(float dt, bool cameraControl, bool leftClickPressed);
     void render();
     void renderImGui();
-    int selectedVertex = -1;
 
 private:
+    // ---- Initialization ----
     void initializeMesh();
 
-    // Update mesh from text input
+    // ---- Mesh Editing ----
     void parseMeshText(const char* vertsText, const char* indicesText);
+
+    // ---- Picking & Dragging ----
+    void pickVertex();
+    void beginDrag();
+    void updateDrag();
+    void endDrag();
 
     glm::vec3 getCameraRayOrigin() const;
     glm::vec3 getCameraRayDirection() const;
 
+private:
     engine::Camera* m_camera = nullptr;
-    engine::DynamicMesh m_mesh;      // <-- Use DynamicMesh
+
+    engine::DynamicMesh m_mesh;
     engine::Shader m_shader;
     engine::Shader m_highlightShader;
 
-    int m_selectedVertex = 0;
+    // ---- Selection ----
+    int  m_selectedVertex = -1;
 
+    // ---- Drag State ----
+    bool m_isDragging = false;
+    glm::vec3 m_dragPlaneNormal = glm::vec3(0.0f);
+    glm::vec3 m_dragStartPosition = glm::vec3(0.0f);
+    float m_dragPlaneDistance = 0.0f;
 
-
-    // --- ImGui buffers for editable text ---
+    // ---- ImGui text buffers ----
     static constexpr size_t BUF_SIZE = 8192;
     char m_verticesBuf[BUF_SIZE] = {0};
     char m_indicesBuf[BUF_SIZE] = {0};

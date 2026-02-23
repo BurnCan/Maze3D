@@ -1,9 +1,9 @@
 #include "tools/mesh_sculpt/MeshSculptTool.h"
 #include <imgui.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <sstream>
-#include <string>
-#include <algorithm>
+#include <cmath>
 
 namespace tools::mesh_sculpt {
 
@@ -14,11 +14,12 @@ MeshSculptTool::MeshSculptTool(engine::Camera* camera)
     : m_camera(camera),
       m_shader(std::string(PROJECT_ROOT) + "/assets/shaders/basic.vert",
                std::string(PROJECT_ROOT) + "/assets/shaders/basic.frag"),
-      m_highlightShader (std::string(PROJECT_ROOT) + "/assets/shaders/highlight.vert",
-                         std::string(PROJECT_ROOT) + "/assets/shaders/highlight.frag"),
-      m_selectedVertex(-1)
+      m_highlightShader(std::string(PROJECT_ROOT) + "/assets/shaders/highlight.vert",
+                        std::string(PROJECT_ROOT) + "/assets/shaders/highlight.frag"),
+      m_selectedVertex(-1),
+      m_isDragging(false)
 {
-    initializeMesh();
+    initializeMesh(); // initialize default cube and text buffers
 }
 
 // ------------------------------------------------------------
@@ -31,7 +32,117 @@ glm::vec3 MeshSculptTool::getCameraRayOrigin() const
 
 glm::vec3 MeshSculptTool::getCameraRayDirection() const
 {
-    return m_camera->forward(); // must be normalized
+    return glm::normalize(m_camera->forward());
+}
+
+// ------------------------------------------------------------
+// Vertex Picking
+// ------------------------------------------------------------
+void MeshSculptTool::pickVertex()
+{
+    glm::vec3 rayOrigin = getCameraRayOrigin();
+    glm::vec3 rayDir = getCameraRayDirection();
+
+    float bestDistance = 0.1f;
+    int bestIndex = -1;
+
+    auto& verts = m_mesh.vertices();
+
+    for (int i = 0; i < static_cast<int>(verts.size()); ++i)
+    {
+        glm::vec3 v = verts[i];
+        glm::vec3 toVertex = v - rayOrigin;
+        float t = glm::dot(toVertex, rayDir);
+
+        if (t < 0.0f)
+            continue;
+
+        glm::vec3 projected = rayOrigin + rayDir * t;
+        float dist = glm::length(v - projected);
+
+        if (dist < bestDistance)
+        {
+            bestDistance = dist;
+            bestIndex = i;
+        }
+    }
+
+    m_selectedVertex = bestIndex;
+}
+
+// ------------------------------------------------------------
+// Begin Drag
+// ------------------------------------------------------------
+void MeshSculptTool::beginDrag()
+{
+    if (m_selectedVertex < 0)
+        return;
+
+    m_isDragging = true;
+
+    // Drag plane along camera view
+    m_dragPlaneNormal = getCameraRayDirection();
+    m_dragStartPosition = m_mesh.vertices()[m_selectedVertex];
+    m_dragPlaneDistance = -glm::dot(m_dragPlaneNormal, m_dragStartPosition);
+}
+
+// ------------------------------------------------------------
+// Update Drag
+// ------------------------------------------------------------
+void MeshSculptTool::updateDrag()
+{
+    if (!m_isDragging || m_selectedVertex < 0)
+        return;
+
+    glm::vec3 rayOrigin = getCameraRayOrigin();
+    glm::vec3 rayDir = getCameraRayDirection();
+
+    float denom = glm::dot(m_dragPlaneNormal, rayDir);
+    if (std::abs(denom) < 1e-5f)
+        return;
+
+    float t = -(glm::dot(m_dragPlaneNormal, rayOrigin) + m_dragPlaneDistance) / denom;
+    if (t < 0.0f)
+        return;
+
+    glm::vec3 hitPoint = rayOrigin + rayDir * t;
+    m_mesh.vertices()[m_selectedVertex] = hitPoint;
+    m_mesh.upload(); // DynamicMesh uploads updated vertices to GPU
+}
+
+// ------------------------------------------------------------
+// End Drag
+// ------------------------------------------------------------
+void MeshSculptTool::endDrag()
+{
+    m_isDragging = false;
+}
+
+// ------------------------------------------------------------
+// Update interaction (click + drag)
+// ------------------------------------------------------------
+void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed)
+{
+    (void)dt;
+
+    // If camera is controlling, ignore sculpt tool input
+    if (!cameraControl)
+        return;
+
+    // --- If mouse just clicked and not dragging, select vertex ---
+    if (leftClickPressed && !m_isDragging)
+    {
+        pickVertex();        // this preserves your original click-to-select
+        beginDrag();         // begin dragging immediately after selection
+    }
+
+    // --- If currently dragging, move vertex with mouse ---
+    if (m_isDragging)
+        updateDrag();
+
+    // --- If dragging but mouse released, stop dragging ---
+    if (m_isDragging && !leftClickPressed)
+        endDrag();
 }
 
 // ------------------------------------------------------------
@@ -40,14 +151,8 @@ glm::vec3 MeshSculptTool::getCameraRayDirection() const
 void MeshSculptTool::initializeMesh()
 {
     std::vector<glm::vec3> verts = {
-        {-0.5f,-0.5f,-0.5f},
-        { 0.5f,-0.5f,-0.5f},
-        { 0.5f, 0.5f,-0.5f},
-        {-0.5f, 0.5f,-0.5f},
-        {-0.5f,-0.5f, 0.5f},
-        { 0.5f,-0.5f, 0.5f},
-        { 0.5f, 0.5f, 0.5f},
-        {-0.5f, 0.5f, 0.5f}
+        {-0.5f,-0.5f,-0.5f},{ 0.5f,-0.5f,-0.5f},{ 0.5f, 0.5f,-0.5f},{-0.5f, 0.5f,-0.5f},
+        {-0.5f,-0.5f, 0.5f},{ 0.5f,-0.5f, 0.5f},{ 0.5f, 0.5f, 0.5f},{-0.5f, 0.5f, 0.5f}
     };
 
     std::vector<unsigned int> indices = {
@@ -65,36 +170,31 @@ void MeshSculptTool::initializeMesh()
 
     // Fill ImGui text buffers
     std::ostringstream vertStream;
-    for (const auto& v : verts)
+    for (auto& v : verts)
         vertStream << v.x << " " << v.y << " " << v.z << "\n";
-
-    strncpy(m_verticesBuf, vertStream.str().c_str(), sizeof(m_verticesBuf) - 1);
+    strncpy(m_verticesBuf, vertStream.str().c_str(), sizeof(m_verticesBuf)-1);
 
     std::ostringstream indStream;
-    for (size_t i = 0; i < indices.size(); i += 3)
+    for (size_t i=0; i<indices.size(); i+=3)
         indStream << indices[i] << " " << indices[i+1] << " " << indices[i+2] << "\n";
-
-    strncpy(m_indicesBuf, indStream.str().c_str(), sizeof(m_indicesBuf) - 1);
+    strncpy(m_indicesBuf, indStream.str().c_str(), sizeof(m_indicesBuf)-1);
 }
 
 // ------------------------------------------------------------
 // Parse Mesh From Text
 // ------------------------------------------------------------
-void MeshSculptTool::parseMeshText(const char* vertsText,
-                                   const char* indicesText)
+void MeshSculptTool::parseMeshText(const char* vertsText, const char* indicesText)
 {
     std::vector<glm::vec3> verts;
     std::vector<unsigned int> indices;
 
     std::istringstream vertStream(vertsText);
-    float x, y, z;
-
+    float x,y,z;
     while (vertStream >> x >> y >> z)
-        verts.emplace_back(x, y, z);
+        verts.emplace_back(x,y,z);
 
     std::istringstream indStream(indicesText);
-    unsigned int a, b, c;
-
+    unsigned int a,b,c;
     while (indStream >> a >> b >> c)
     {
         indices.push_back(a);
@@ -111,145 +211,71 @@ void MeshSculptTool::parseMeshText(const char* vertsText,
 }
 
 // ------------------------------------------------------------
-// Update (Selection Logic)
-// ------------------------------------------------------------
-void MeshSculptTool::update(float dt,
-                            bool cameraControl,
-                            bool leftClickPressed)
-{
-    (void)dt;
-
-    if (!cameraControl || !leftClickPressed)
-        return;
-
-    glm::vec3 rayOrigin = getCameraRayOrigin();
-    glm::vec3 rayDir    = getCameraRayDirection();
-
-    float bestDistance = 0.1f;
-    int bestIndex = -1;
-
-    auto& verts = m_mesh.vertices();
-
-    for (size_t i = 0; i < verts.size(); ++i)
-    {
-        glm::vec3 v = verts[i];
-
-        glm::vec3 toPoint = v - rayOrigin;
-        float t = glm::dot(toPoint, rayDir);
-
-        if (t < 0.0f)
-            continue;
-
-        glm::vec3 closestPoint = rayOrigin + rayDir * t;
-        float dist = glm::length(v - closestPoint);
-
-        if (dist < bestDistance)
-        {
-            bestDistance = dist;
-            bestIndex = static_cast<int>(i);
-        }
-    }
-
-    if (bestIndex >= 0)
-        m_selectedVertex = bestIndex;
-}
-
-// ------------------------------------------------------------
-// Render the mesh and highlight the selected vertex
+// Render the mesh and highlight selected vertex
 // ------------------------------------------------------------
 void MeshSculptTool::render()
 {
-    if (!m_camera)
-        return;
+    if (!m_camera) return;
 
-    // ------------------------------
-    // Draw the main mesh (wireframe)
-    // ------------------------------
-    m_shader.bind();
-
-    glm::mat4 model = glm::mat4(1.0f);
+    glm::mat4 model = glm::mat4(1.f);
     glm::mat4 view  = m_camera->view();
     glm::mat4 proj  = m_camera->projection();
 
+    // Wireframe mesh
+    m_shader.bind();
     m_shader.setMat4("uModel", model);
     m_shader.setMat4("uView", view);
     m_shader.setMat4("uProj", proj);
+    m_shader.setVec3("uColor", glm::vec3(0.7f,0.7f,0.8f));
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-    // Wireframe color
-    m_shader.setVec3("uColor", glm::vec3(0.7f, 0.7f, 0.8f));
     m_mesh.draw();
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-    // ------------------------------
-    // Draw all vertices as points
-    // ------------------------------
+    // All vertices
     glBindVertexArray(m_mesh.vao());
     glEnable(GL_PROGRAM_POINT_SIZE);
     glPointSize(8.0f);
-
-    m_shader.setVec3("uColor", glm::vec3(0.1f, 0.9f, 0.2f));
+    m_shader.setVec3("uColor", glm::vec3(0.2f,0.9f,0.3f));
     glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_mesh.vertices().size()));
     glBindVertexArray(0);
 
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    // ------------------------------
-    // Draw selected vertex (highlight)
-    // ------------------------------
-    if (m_selectedVertex >= 0 &&
-        m_selectedVertex < static_cast<int>(m_mesh.vertices().size()))
+    // Highlight selected vertex
+    if (m_selectedVertex >= 0 && m_selectedVertex < static_cast<int>(m_mesh.vertices().size()))
     {
         m_highlightShader.bind();
-
-        // Pass same matrices to highlight shader
         m_highlightShader.setMat4("uModel", model);
         m_highlightShader.setMat4("uView", view);
         m_highlightShader.setMat4("uProj", proj);
+        m_highlightShader.setVec3("uColor", glm::vec3(1.f,0.2f,0.2f));
 
         glBindVertexArray(m_mesh.vao());
-        glEnable(GL_PROGRAM_POINT_SIZE);
-        glPointSize(18.0f); // larger for highlight
-
-        // Highlight color
-        m_highlightShader.setVec3("uColor", glm::vec3(1.0f, 0.2f, 0.2f));
-
+        glPointSize(18.0f);
         glDrawArrays(GL_POINTS, m_selectedVertex, 1);
-
         glBindVertexArray(0);
     }
 }
 
-
 // ------------------------------------------------------------
-// Render ImGui panel for editing vertices
+// Render ImGui panel
 // ------------------------------------------------------------
 void MeshSculptTool::renderImGui()
 {
     ImGui::Begin("Mesh Sculpt Tool");
 
     auto& verts = m_mesh.vertices();
-
     ImGui::Text("Vertex Count: %zu", verts.size());
     ImGui::Separator();
 
-    // Selected vertex info + editable position
-    if (m_selectedVertex >= 0 &&
-        m_selectedVertex < static_cast<int>(verts.size()))
+    if (m_selectedVertex >= 0 && m_selectedVertex < static_cast<int>(verts.size()))
     {
         glm::vec3& v = verts[m_selectedVertex];
-
         ImGui::Text("Selected Vertex");
         ImGui::Text("Index: %d", m_selectedVertex);
-        ImGui::Text("X: %.3f", v.x);
-        ImGui::Text("Y: %.3f", v.y);
-        ImGui::Text("Z: %.3f", v.z);
+        ImGui::Text("X: %.3f Y: %.3f Z: %.3f", v.x, v.y, v.z);
 
         if (ImGui::DragFloat3("Edit Position", &v.x, 0.01f))
-        {
-            // Update mesh buffer
             m_mesh.upload();
-        }
     }
     else
     {
@@ -258,19 +284,13 @@ void MeshSculptTool::renderImGui()
 
     ImGui::Separator();
 
-    // Raw text editing
     if (ImGui::InputTextMultiline("Vertices", m_verticesBuf, sizeof(m_verticesBuf)))
-    {
         parseMeshText(m_verticesBuf, m_indicesBuf);
-    }
 
     if (ImGui::InputTextMultiline("Indices", m_indicesBuf, sizeof(m_indicesBuf)))
-    {
         parseMeshText(m_verticesBuf, m_indicesBuf);
-    }
 
     ImGui::End();
 }
-
 
 } // namespace tools::mesh_sculpt
