@@ -14,9 +14,10 @@ class MeshSculptTool
 public:
     explicit MeshSculptTool(engine::Camera* camera);
 
-    void update(float dt);
+    void update(float dt, bool cameraControl, bool leftClickPressed);
     void render();
     void renderImGui();
+    int selectedVertex = -1;
 
 private:
     void initializeMesh();
@@ -24,11 +25,17 @@ private:
     // Update mesh from text input
     void parseMeshText(const char* vertsText, const char* indicesText);
 
+    glm::vec3 getCameraRayOrigin() const;
+    glm::vec3 getCameraRayDirection() const;
+
     engine::Camera* m_camera = nullptr;
     engine::DynamicMesh m_mesh;      // <-- Use DynamicMesh
     engine::Shader m_shader;
+    engine::Shader m_highlightShader;
 
     int m_selectedVertex = 0;
+
+
 
     // --- ImGui buffers for editable text ---
     static constexpr size_t BUF_SIZE = 8192;

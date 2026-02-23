@@ -88,7 +88,12 @@ int main()
 
         // --- Update ---
         controller.update(camera, dt, mouseDx, -mouseDy, cameraControl);
-        tool.update(dt);
+        bool leftClick =
+            glfwGetMouseButton(window.nativeHandle(),
+                            GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+
+        tool.update(dt, cameraControl, leftClick);
+
 
         // --- Render Scene ---
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
@@ -108,6 +113,31 @@ int main()
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        // --- Crosshair ---
+        if (cameraControl)
+        {
+            ImDrawList* drawList = ImGui::GetForegroundDrawList();
+
+            ImVec2 center(
+                ImGui::GetIO().DisplaySize.x * 0.5f,
+                ImGui::GetIO().DisplaySize.y * 0.5f
+            );
+
+            float size = 8.0f;
+            ImU32 color = IM_COL32(255, 255, 255, 255);
+
+            drawList->AddLine(
+                ImVec2(center.x - size, center.y),
+                ImVec2(center.x + size, center.y),
+                color, 2.0f);
+
+            drawList->AddLine(
+                ImVec2(center.x, center.y - size),
+                ImVec2(center.x, center.y + size),
+                color, 2.0f);
+        }
+
 
         tool.renderImGui();
 
