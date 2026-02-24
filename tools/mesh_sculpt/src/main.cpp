@@ -92,7 +92,11 @@ int main()
             glfwGetMouseButton(window.nativeHandle(),
                             GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
 
-        tool.update(dt, cameraControl, leftClick);
+        bool deletePressed =
+            glfwGetKey(window.nativeHandle(),
+                    GLFW_KEY_DELETE) == GLFW_PRESS;
+
+        tool.update(dt, cameraControl, leftClick, deletePressed);
 
 
         // --- Render Scene ---

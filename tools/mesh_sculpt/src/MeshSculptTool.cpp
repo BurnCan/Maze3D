@@ -17,7 +17,8 @@ MeshSculptTool::MeshSculptTool(engine::Camera* camera)
       m_highlightShader(std::string(PROJECT_ROOT) + "/assets/shaders/highlight.vert",
                         std::string(PROJECT_ROOT) + "/assets/shaders/highlight.frag"),
       m_selectedVertex(-1),
-      m_isDragging(false)
+      m_isDragging(false),
+      m_selectedTriangle (-1)
 {
     initializeMesh(); // initialize default cube and text buffers
 }
@@ -69,6 +70,8 @@ void MeshSculptTool::pickVertex()
 
     m_selectedVertex = bestIndex;
 }
+
+
 
 // ------------------------------------------------------------
 // Begin Drag
@@ -199,10 +202,115 @@ void MeshSculptTool::syncVerticesToText()
     std::strncpy(m_verticesBuf, text.c_str(), sizeof(m_verticesBuf) - 1);
 }
 
+void MeshSculptTool::syncIndicesToText()
+{
+    std::ostringstream indStream;
+
+    const auto& indices = m_mesh.indices();
+
+    for (size_t i = 0; i < indices.size(); i += 3)
+    {
+        if (i + 2 < indices.size())
+        {
+            indStream
+                << indices[i]     << " "
+                << indices[i + 1] << " "
+                << indices[i + 2] << "\n";
+        }
+    }
+
+    std::string text = indStream.str();
+
+    std::memset(m_indicesBuf, 0, sizeof(m_indicesBuf));
+    std::strncpy(m_indicesBuf, text.c_str(), sizeof(m_indicesBuf) - 1);
+}
+
+void MeshSculptTool::deleteSelectedTriangle()
+{
+    if (m_selectedTriangle < 0)
+        return;
+
+    auto& indices = m_mesh.indices();
+
+    indices.erase(indices.begin() + m_selectedTriangle * 3,
+                  indices.begin() + m_selectedTriangle * 3 + 3);
+
+    m_selectedTriangle = -1;
+
+    m_mesh.upload();
+    syncIndicesToText();
+}
+
+// --- Triangle Picking ---
+int m_selectedTriangle = -1;
+bool rayIntersectsTriangle(const glm::vec3& orig,
+                           const glm::vec3& dir,
+                           const glm::vec3& v0,
+                           const glm::vec3& v1,
+                           const glm::vec3& v2,
+                           float& t)
+{
+    const float EPSILON = 0.0000001f;
+
+    glm::vec3 edge1 = v1 - v0;
+    glm::vec3 edge2 = v2 - v0;
+    glm::vec3 h = glm::cross(dir, edge2);
+    float a = glm::dot(edge1, h);
+
+    if (a > -EPSILON && a < EPSILON)
+        return false;
+
+    float f = 1.0f / a;
+    glm::vec3 s = orig - v0;
+    float u = f * glm::dot(s, h);
+
+    if (u < 0.0f || u > 1.0f)
+        return false;
+
+    glm::vec3 q = glm::cross(s, edge1);
+    float v = f * glm::dot(dir, q);
+
+    if (v < 0.0f || u + v > 1.0f)
+        return false;
+
+    t = f * glm::dot(edge2, q);
+    return t > EPSILON;
+}
+
+void MeshSculptTool::pickTriangle()
+{
+    m_selectedTriangle = -1;
+
+    glm::vec3 rayOrigin = m_camera->position();
+    glm::vec3 rayDir = getCameraRayDirection();
+
+    const auto& verts = m_mesh.vertices();
+    const auto& indices = m_mesh.indices();
+
+    float closestT = std::numeric_limits<float>::max();
+
+    for (size_t i = 0; i < indices.size(); i += 3)
+    {
+        glm::vec3 v0 = verts[indices[i]];
+        glm::vec3 v1 = verts[indices[i + 1]];
+        glm::vec3 v2 = verts[indices[i + 2]];
+
+        float t;
+        if (rayIntersectsTriangle(rayOrigin, rayDir, v0, v1, v2, t))
+        {
+            if (t < closestT)
+            {
+                closestT = t;
+                m_selectedTriangle = static_cast<int>(i / 3);
+            }
+        }
+    }
+}
+
 // ------------------------------------------------------------
 // Update interaction (click + drag)
 // ------------------------------------------------------------
-void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed)
+void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed, bool deleteKeyPressed)
 {
     (void)dt;
 
@@ -217,6 +325,12 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed)
         beginDrag();         // begin dragging immediately after selection
     }
 
+    // --- If mouse just clicked and not dragging, select triangle ---
+    if (leftClickPressed && !m_isDragging)
+    {
+        pickTriangle();
+    }
+
     // --- If currently dragging, move vertex with mouse ---
     if (m_isDragging)
         updateDrag();
@@ -224,7 +338,17 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed)
     // --- If dragging but mouse released, stop dragging ---
     if (m_isDragging && !leftClickPressed)
         endDrag();
+
+    if (m_selectedTriangle >= 0 && deleteKeyPressed)
+    {
+        deleteSelectedTriangle();
+    }
 }
+
+
+
+
+
 
 // ------------------------------------------------------------
 // Render the mesh and highlight selected vertex
@@ -270,7 +394,31 @@ void MeshSculptTool::render()
         glDrawArrays(GL_POINTS, m_selectedVertex, 1);
         glBindVertexArray(0);
     }
+    // Highlight selected triangle
+    if (m_selectedTriangle >= 0)
+    {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        m_highlightShader.bind();
+        m_highlightShader.setMat4("uModel", model);
+        m_highlightShader.setMat4("uView", view);
+        m_highlightShader.setMat4("uProj", proj);
+        m_highlightShader.setVec3("uColor", glm::vec3(1.0f, 0.3f, 0.1f));
+
+        glBindVertexArray(m_mesh.vao());
+
+        glDrawElements(GL_TRIANGLES,
+                    3,
+                    GL_UNSIGNED_INT,
+                    (void*)(m_selectedTriangle * 3 * sizeof(unsigned int)));
+
+        glBindVertexArray(0);
+
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    }
 }
+
+
 
 // ------------------------------------------------------------
 // Render ImGui panel

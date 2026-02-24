@@ -14,7 +14,7 @@ class MeshSculptTool
 public:
     explicit MeshSculptTool(engine::Camera* camera);
 
-    void update(float dt, bool cameraControl, bool leftClickPressed);
+    void update(float dt, bool cameraControl, bool leftClickPressed, bool deleteKeyPressed);
     void render();
     void renderImGui();
 
@@ -32,6 +32,9 @@ private:
     void endDrag();
 
     void syncVerticesToText();
+    void syncIndicesToText();
+    void pickTriangle();
+    void deleteSelectedTriangle();
 
     glm::vec3 getCameraRayOrigin() const;
     glm::vec3 getCameraRayDirection() const;
@@ -45,6 +48,7 @@ private:
 
     // ---- Selection ----
     int  m_selectedVertex = -1;
+    int  m_selectedTriangle = -1;
 
     // ---- Drag State ----
     bool m_isDragging = false;
