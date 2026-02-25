@@ -24,6 +24,7 @@ public:
     // --- New: mutable helpers for editing walls ---
     void addWall(int x, int y, Direction dir);
     void removeWall(int x, int y, Direction dir);
+    void clearWalls();
 
     int width() const  { return m_width; }
     int height() const { return m_height; }

@@ -414,6 +414,7 @@ void MeshSculptTool::render()
 
         glBindVertexArray(0);
 
+        glDisable(GL_POLYGON_OFFSET_FILL);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
 }

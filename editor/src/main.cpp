@@ -55,6 +55,9 @@ static SelectedWall g_selectedWall;
 // ---------------------------
 static bool g_wireframe  = false;
 static bool g_collision  = true;
+static bool g_drawFloor  = true;
+static bool g_drawCeiling = true;
+static bool g_drawMazeWalls = true;
 
 enum class AppMode
 {
@@ -198,6 +201,16 @@ int main()
 
             // Wireframe / mode toggles
             ImGui::Checkbox("Wireframe", &g_wireframe);
+            ImGui::Checkbox("Draw Floor", &g_drawFloor);
+            ImGui::Checkbox("Draw Ceiling", &g_drawCeiling);
+
+            if (ImGui::Checkbox("Draw Maze Walls", &g_drawMazeWalls) && !g_drawMazeWalls)
+            {
+                maze.clearWalls();
+                mazeMesh.build(maze);
+                collider.build(maze);
+            }
+
             bool isGameMode = (mode == AppMode::Game);
             if (ImGui::Checkbox("Game Mode", &isGameMode))
             {
@@ -352,36 +365,48 @@ int main()
 
             glDisable(GL_CULL_FACE);
 
-            floorShader.bind();
-            floorShader.setMat4("uView", camera.view());
-            floorShader.setMat4("uProj", camera.projection());
-            boxRenderer.draw(floorShader,
-                            glm::vec3(mazeWidth*0.5f, -0.05f, mazeDepth*0.5f),
-                            glm::vec3(mazeWidth, 0.1f, mazeDepth));
+            if (g_drawFloor)
+            {
+                floorShader.bind();
+                floorShader.setMat4("uView", camera.view());
+                floorShader.setMat4("uProj", camera.projection());
+                boxRenderer.draw(floorShader,
+                                glm::vec3(mazeWidth*0.5f, -0.05f, mazeDepth*0.5f),
+                                glm::vec3(mazeWidth, 0.1f, mazeDepth));
+            }
 
-            ceilingShader.bind();
-            ceilingShader.setMat4("uView", camera.view());
-            ceilingShader.setMat4("uProj", camera.projection());
-            boxRenderer.draw(ceilingShader,
-                            glm::vec3(mazeWidth*0.5f, WALL_HEIGHT+0.05f, mazeDepth*0.5f),
-                            glm::vec3(mazeWidth, 0.1f, mazeDepth));
+            if (g_drawCeiling)
+            {
+                ceilingShader.bind();
+                ceilingShader.setMat4("uView", camera.view());
+                ceilingShader.setMat4("uProj", camera.projection());
+                boxRenderer.draw(ceilingShader,
+                                glm::vec3(mazeWidth*0.5f, WALL_HEIGHT+0.05f, mazeDepth*0.5f),
+                                glm::vec3(mazeWidth, 0.1f, mazeDepth));
+            }
 
             glEnable(GL_CULL_FACE);
 
-            hedgeShader.bind();
-            glm::mat4 model = glm::mat4(1.0f); // identity, or translate/scale as needed
-            hedgeShader.setMat4("uModel", model);
-            hedgeShader.setMat4("uView", camera.view());
-            hedgeShader.setMat4("uProj", camera.projection());
+            if (g_drawMazeWalls)
+            {
+                hedgeShader.bind();
+                glm::mat4 model = glm::mat4(1.0f); // identity, or translate/scale as needed
+                hedgeShader.setMat4("uModel", model);
+                hedgeShader.setMat4("uView", camera.view());
+                hedgeShader.setMat4("uProj", camera.projection());
 
-            hedgeShader.setVec3("uCameraPos", camera.position());
-            hedgeShader.setFloat("uTime", (float)glfwGetTime());
+                hedgeShader.setVec3("uCameraPos", camera.position());
+                hedgeShader.setFloat("uTime", (float)glfwGetTime());
 
-            // Optional effects
-            hedgeShader.setBool("useGlow", true);
-            hedgeShader.setInt("colorMode", 0); // 0=cool, 1=warm, 2=neon
+                // Optional effects
+                hedgeShader.setBool("useGlow", true);
+                hedgeShader.setInt("colorMode", 0); // 0=cool, 1=warm, 2=neon
 
-            mazeMesh.draw(hedgeShader);
+                    mazeMesh.draw(hedgeShader);
+            }
+
+
+
 
             //Draw player capsule
             if (mode == AppMode::Game)

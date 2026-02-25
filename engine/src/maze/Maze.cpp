@@ -80,6 +80,12 @@ void Maze::removeWall(int x, int y, Direction dir)
         m_cells[index(nx, ny)].walls &= ~opposite;
 }
 
+void Maze::clearWalls()
+{
+    for (auto& c : m_cells)
+        c.walls = 0;
+}
+
 
 void Maze::generate()
 {
