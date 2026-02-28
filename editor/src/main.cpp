@@ -25,6 +25,7 @@
 #include "editor/EditorViewport.h"
 #include <app/controllers/EditorFlyController.h>
 #include <app/controllers/FPSController.h>
+#include <app/controllers/MeshSculptController.h>
 #include <app/controllers/ICameraController.h>
 #include <app/controllers/MeshSculptController.h>
 
