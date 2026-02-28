@@ -1,5 +1,7 @@
 #include "tools/mesh_sculpt/MeshSculptTool.h"
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
+#include "imgui_internal.h" // Math operators are defined here
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <sstream>
@@ -186,6 +188,10 @@ void MeshSculptTool::parseMeshText(const char* vertsText, const char* indicesTex
         m_mesh.setVertices(verts);
         m_mesh.setIndices(indices);
         m_mesh.upload();
+
+        m_selectedVertex = -1;
+        m_selectedTriangle = -1;
+        m_isDragging = false;
     }
 }
 
@@ -231,10 +237,16 @@ void MeshSculptTool::deleteSelectedTriangle()
         return;
 
     auto& indices = m_mesh.indices();
+    const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
 
-    indices.erase(indices.begin() + m_selectedTriangle * 3,
-                  indices.begin() + m_selectedTriangle * 3 + 3);
+    if (triBase + 2 >= indices.size())
+    {
+        m_selectedTriangle = -1;
+        return;
+    }
 
+    indices.erase(indices.begin() + triBase,
+                  indices.begin() + triBase + 3);
     m_selectedTriangle = -1;
 
     m_mesh.upload();
@@ -242,7 +254,7 @@ void MeshSculptTool::deleteSelectedTriangle()
 }
 
 // --- Triangle Picking ---
-int m_selectedTriangle = -1;
+//int m_selectedTriangle = -1;
 bool rayIntersectsTriangle(const glm::vec3& orig,
                            const glm::vec3& dir,
                            const glm::vec3& v0,
@@ -289,11 +301,18 @@ void MeshSculptTool::pickTriangle()
 
     float closestT = std::numeric_limits<float>::max();
 
-    for (size_t i = 0; i < indices.size(); i += 3)
+    for (size_t i = 0; i + 2 < indices.size(); i += 3)
     {
-        glm::vec3 v0 = verts[indices[i]];
-        glm::vec3 v1 = verts[indices[i + 1]];
-        glm::vec3 v2 = verts[indices[i + 2]];
+        const unsigned int i0 = indices[i];
+        const unsigned int i1 = indices[i + 1];
+        const unsigned int i2 = indices[i + 2];
+
+        if (i0 >= verts.size() || i1 >= verts.size() || i2 >= verts.size())
+            continue;
+
+        glm::vec3 v0 = verts[i0];
+        glm::vec3 v1 = verts[i1];
+        glm::vec3 v2 = verts[i2];
 
         float t;
         if (rayIntersectsTriangle(rayOrigin, rayDir, v0, v1, v2, t))
@@ -397,27 +416,43 @@ void MeshSculptTool::render()
     // Highlight selected triangle
     if (m_selectedTriangle >= 0)
     {
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        const auto& indices = m_mesh.indices();
+        const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
 
-        m_highlightShader.bind();
-        m_highlightShader.setMat4("uModel", model);
-        m_highlightShader.setMat4("uView", view);
-        m_highlightShader.setMat4("uProj", proj);
-        m_highlightShader.setVec3("uColor", glm::vec3(1.0f, 0.3f, 0.1f));
+        if (triBase + 2 >= indices.size())
+        {
+            m_selectedTriangle = -1;
+        }
+        else
+        {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            m_highlightShader.bind();
+            m_highlightShader.setMat4("uModel", model);
+            m_highlightShader.setMat4("uView", view);
+            m_highlightShader.setMat4("uProj", proj);
+            m_highlightShader.setVec3("uColor", glm::vec3(1.0f, 0.3f, 0.1f));
 
-        glBindVertexArray(m_mesh.vao());
+            glBindVertexArray(m_mesh.vao());
 
-        glDrawElements(GL_TRIANGLES,
-                    3,
-                    GL_UNSIGNED_INT,
-                    (void*)(m_selectedTriangle * 3 * sizeof(unsigned int)));
+            glDrawElements(GL_TRIANGLES,
+                        3,
+                        GL_UNSIGNED_INT,
+                        (void*)(triBase * sizeof(unsigned int)));
 
-        glBindVertexArray(0);
+            glBindVertexArray(0);
 
-        glDisable(GL_POLYGON_OFFSET_FILL);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            glDisable(GL_POLYGON_OFFSET_FILL);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        }
+
     }
 }
+
+
+
+
+
 
 
 
@@ -455,6 +490,51 @@ void MeshSculptTool::renderImGui()
 
     if (ImGui::InputTextMultiline("Indices", m_indicesBuf, sizeof(m_indicesBuf)))
         parseMeshText(m_verticesBuf, m_indicesBuf);
+    if (m_selectedTriangle >= 0)
+    {
+        const auto& indices = m_mesh.indices();
+        const auto& verts = m_mesh.vertices();
+        const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
+
+        if (triBase + 2 < indices.size())
+        {
+            const glm::mat4 model = glm::mat4(1.f);
+            const glm::mat4 view  = m_camera->view();
+            const glm::mat4 proj  = m_camera->projection();
+
+            ImDrawList* drawList = ImGui::GetForegroundDrawList();
+            const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+
+            auto drawVertexIndexLabel = [&](unsigned int vertexIndex)
+            {
+                if (vertexIndex >= verts.size())
+                    return;
+
+                const glm::vec4 clipPos = proj * view * model * glm::vec4(verts[vertexIndex], 1.0f);
+                if (clipPos.w <= 0.0f)
+                    return;
+
+                const glm::vec3 ndc = glm::vec3(clipPos) / clipPos.w;
+                if (ndc.x < -1.0f || ndc.x > 1.0f || ndc.y < -1.0f || ndc.y > 1.0f)
+                    return;
+
+                const float screenX = (ndc.x * 0.5f + 0.5f) * displaySize.x;
+                const float screenY = (1.0f - (ndc.y * 0.5f + 0.5f)) * displaySize.y;
+
+                const std::string label = std::to_string(vertexIndex);
+                const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
+                const ImVec2 textPos(screenX - textSize.x * 0.5f, screenY - textSize.y - 12.0f);
+
+                drawList->AddText(ImVec2(textPos.x + 1.0f, textPos.y + 1.0f), IM_COL32(0, 0, 0, 255), label.c_str());
+                drawList->AddText(textPos, IM_COL32(255, 255, 0, 255), label.c_str());
+            };
+
+            drawVertexIndexLabel(indices[triBase]);
+            drawVertexIndexLabel(indices[triBase + 1]);
+            drawVertexIndexLabel(indices[triBase + 2]);
+        }
+    }
+
 
     ImGui::End();
 }
