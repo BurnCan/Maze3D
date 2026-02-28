@@ -31,4 +31,5 @@ void MeshSculptController::update(engine::FPSCamera& camera, float dt, float mou
     camera.rotate(mouseDx * m_mouseSensitivity, mouseDy * m_mouseSensitivity);
 }
 
+
 } // namespace app

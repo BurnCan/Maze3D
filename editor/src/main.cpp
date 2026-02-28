@@ -27,6 +27,7 @@
 #include <app/controllers/FPSController.h>
 #include <app/controllers/MeshSculptController.h>
 #include <app/controllers/ICameraController.h>
+#include <app/controllers/MeshSculptController.h>
 
 #include "tools/mesh_sculpt/MeshSculptTool.h"
 
@@ -236,7 +237,7 @@ int main()
                 else
                 {
                     mode = AppMode::Editor;
-                    gameViewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+                     gameViewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
                 }
             }
 
@@ -324,7 +325,10 @@ int main()
             }
 
             meshSculptTool.renderImGui();
+
             ImGui::End();
+
+
 
 
             // --- Camera update ---
@@ -424,6 +428,8 @@ int main()
 
 
 
+
+
             //Draw player capsule
             if (mode == AppMode::Game)
             {
@@ -447,6 +453,10 @@ int main()
             }
 
             gameViewport.end();
+
+
+
+
 
             if (mode == AppMode::Editor)
             {
