@@ -1,7 +1,6 @@
 #include "app/controllers/MeshSculptController.h"
-#include <GLFW/glfw3.h>
 
-namespace tools::mesh_sculpt
+namespace app
 {
 
 MeshSculptController::MeshSculptController(GLFWwindow* window)
@@ -9,14 +8,13 @@ MeshSculptController::MeshSculptController(GLFWwindow* window)
 {
 }
 
-void MeshSculptController::update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy, bool cameraControl)
+void MeshSculptController::update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy)
 {
-    if (!m_window || !cameraControl)
+    if (!m_window)
         return;
 
     float speed = m_orbitSpeed * dt;
 
-    // WASD + QE movement
     if (glfwGetKey(m_window, GLFW_KEY_W) == GLFW_PRESS)
         camera.moveForward(speed);
     if (glfwGetKey(m_window, GLFW_KEY_S) == GLFW_PRESS)
@@ -30,9 +28,7 @@ void MeshSculptController::update(engine::FPSCamera& camera, float dt, float mou
     if (glfwGetKey(m_window, GLFW_KEY_E) == GLFW_PRESS)
         camera.moveUp(speed);
 
-    // Free-look rotation
     camera.rotate(mouseDx * m_mouseSensitivity, mouseDy * m_mouseSensitivity);
 }
 
-
-} // namespace tools::mesh_sculpt
+} // namespace app

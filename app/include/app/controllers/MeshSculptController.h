@@ -1,17 +1,23 @@
 #pragma once
-#include "engine/scene/FPSCamera.h"
+
 #include <GLFW/glfw3.h>
 
-namespace tools::mesh_sculpt
+#include "app/controllers/ICameraController.h"
+
+namespace app
 {
 
-class MeshSculptController
+class MeshSculptController : public ICameraController
 {
 public:
     explicit MeshSculptController(GLFWwindow* window);
 
-    // Updated to include cameraControl toggle
-    void update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy, bool cameraControl);
+    void update(
+        engine::FPSCamera& camera,
+        float dt,
+        float mouseDx,
+        float mouseDy
+    ) override;
 
 private:
     GLFWwindow* m_window = nullptr;
@@ -19,4 +25,4 @@ private:
     float m_mouseSensitivity = 0.1f;
 };
 
-} // namespace tools::mesh_sculpt
+} // namespace app

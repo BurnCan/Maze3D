@@ -456,6 +456,69 @@ void MeshSculptTool::render()
 
 
 
+
+void MeshSculptTool::renderOverlay(const glm::vec2& viewportMin, const glm::vec2& viewportMax, bool drawCrosshair)
+{
+    if (!m_camera)
+        return;
+
+    ImDrawList* drawList = ImGui::GetForegroundDrawList();
+    const glm::vec2 viewportSize(viewportMax.x - viewportMin.x, viewportMax.y - viewportMin.y);
+
+    if (drawCrosshair)
+    {
+        const glm::vec2 center(viewportMin.x + viewportSize.x * 0.5f,
+                               viewportMin.y + viewportSize.y * 0.5f);
+        constexpr float size = 8.0f;
+        const ImU32 color = IM_COL32(255, 255, 255, 255);
+
+        drawList->AddLine(ImVec2(center.x - size, center.y), ImVec2(center.x + size, center.y), color, 2.0f);
+        drawList->AddLine(ImVec2(center.x, center.y - size), ImVec2(center.x, center.y + size), color, 2.0f);
+    }
+
+    if (m_selectedTriangle < 0)
+        return;
+
+    const auto& indices = m_mesh.indices();
+    const auto& verts = m_mesh.vertices();
+    const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
+
+    if (triBase + 2 >= indices.size())
+        return;
+
+    const glm::mat4 model = glm::mat4(1.f);
+    const glm::mat4 view = m_camera->view();
+    const glm::mat4 proj = m_camera->projection();
+
+    auto drawVertexIndexLabel = [&](unsigned int vertexIndex)
+    {
+        if (vertexIndex >= verts.size())
+            return;
+
+        const glm::vec4 clipPos = proj * view * model * glm::vec4(verts[vertexIndex], 1.0f);
+        if (clipPos.w <= 0.0f)
+            return;
+
+        const glm::vec3 ndc = glm::vec3(clipPos) / clipPos.w;
+        if (ndc.x < -1.0f || ndc.x > 1.0f || ndc.y < -1.0f || ndc.y > 1.0f)
+            return;
+
+        const float screenX = viewportMin.x + (ndc.x * 0.5f + 0.5f) * viewportSize.x;
+        const float screenY = viewportMin.y + (1.0f - (ndc.y * 0.5f + 0.5f)) * viewportSize.y;
+
+        const std::string label = std::to_string(vertexIndex);
+        const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
+        const ImVec2 textPos(screenX - textSize.x * 0.5f, screenY - textSize.y - 12.0f);
+
+        drawList->AddText(ImVec2(textPos.x + 1.0f, textPos.y + 1.0f), IM_COL32(0, 0, 0, 255), label.c_str());
+        drawList->AddText(textPos, IM_COL32(255, 255, 0, 255), label.c_str());
+    };
+
+    drawVertexIndexLabel(indices[triBase]);
+    drawVertexIndexLabel(indices[triBase + 1]);
+    drawVertexIndexLabel(indices[triBase + 2]);
+}
+
 // ------------------------------------------------------------
 // Render ImGui panel
 // ------------------------------------------------------------
@@ -490,51 +553,6 @@ void MeshSculptTool::renderImGui()
 
     if (ImGui::InputTextMultiline("Indices", m_indicesBuf, sizeof(m_indicesBuf)))
         parseMeshText(m_verticesBuf, m_indicesBuf);
-    if (m_selectedTriangle >= 0)
-    {
-        const auto& indices = m_mesh.indices();
-        const auto& verts = m_mesh.vertices();
-        const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
-
-        if (triBase + 2 < indices.size())
-        {
-            const glm::mat4 model = glm::mat4(1.f);
-            const glm::mat4 view  = m_camera->view();
-            const glm::mat4 proj  = m_camera->projection();
-
-            ImDrawList* drawList = ImGui::GetForegroundDrawList();
-            const ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-
-            auto drawVertexIndexLabel = [&](unsigned int vertexIndex)
-            {
-                if (vertexIndex >= verts.size())
-                    return;
-
-                const glm::vec4 clipPos = proj * view * model * glm::vec4(verts[vertexIndex], 1.0f);
-                if (clipPos.w <= 0.0f)
-                    return;
-
-                const glm::vec3 ndc = glm::vec3(clipPos) / clipPos.w;
-                if (ndc.x < -1.0f || ndc.x > 1.0f || ndc.y < -1.0f || ndc.y > 1.0f)
-                    return;
-
-                const float screenX = (ndc.x * 0.5f + 0.5f) * displaySize.x;
-                const float screenY = (1.0f - (ndc.y * 0.5f + 0.5f)) * displaySize.y;
-
-                const std::string label = std::to_string(vertexIndex);
-                const ImVec2 textSize = ImGui::CalcTextSize(label.c_str());
-                const ImVec2 textPos(screenX - textSize.x * 0.5f, screenY - textSize.y - 12.0f);
-
-                drawList->AddText(ImVec2(textPos.x + 1.0f, textPos.y + 1.0f), IM_COL32(0, 0, 0, 255), label.c_str());
-                drawList->AddText(textPos, IM_COL32(255, 255, 0, 255), label.c_str());
-            };
-
-            drawVertexIndexLabel(indices[triBase]);
-            drawVertexIndexLabel(indices[triBase + 1]);
-            drawVertexIndexLabel(indices[triBase + 2]);
-        }
-    }
-
 
     ImGui::End();
 }

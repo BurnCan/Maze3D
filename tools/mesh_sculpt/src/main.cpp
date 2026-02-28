@@ -25,7 +25,7 @@ int main()
 
     engine::FPSCamera camera(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
     tools::mesh_sculpt::MeshSculptTool tool(&camera);
-    tools::mesh_sculpt::MeshSculptController controller(window.nativeHandle());
+    app::MeshSculptController controller(window.nativeHandle());
 
     // --- Timing ---
     float lastTime = static_cast<float>(glfwGetTime());
@@ -87,7 +87,8 @@ int main()
         lastMouseY = mouseY;
 
         // --- Update ---
-        controller.update(camera, dt, mouseDx, -mouseDy, cameraControl);
+        if (cameraControl)
+            controller.update(camera, dt, mouseDx, -mouseDy);
         bool leftClick =
             glfwGetMouseButton(window.nativeHandle(),
                             GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;

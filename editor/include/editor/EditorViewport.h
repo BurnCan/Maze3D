@@ -14,7 +14,7 @@ namespace engine {
 class EditorViewport
 {
 public:
-    EditorViewport(GLFWwindow* window);
+    explicit EditorViewport(GLFWwindow* window, const char* windowName = "Game");
     ~EditorViewport();
 
 
@@ -38,6 +38,8 @@ public:
     void bindFramebuffer();
 
     glm::ivec2 size() const { return m_size; }
+    glm::vec2 imageMin() const { return m_imageMin; }
+    glm::vec2 imageMax() const { return m_imageMax; }
 
 private:
     void resize(int w, int h);
@@ -49,4 +51,7 @@ private:
     glm::ivec2 m_size{1280, 720};
     bool m_capturingMouse = false;
     std::unique_ptr<app::ICameraController> m_controller;
+    const char* m_windowName = "Game";
+    glm::vec2 m_imageMin{0.0f, 0.0f};
+    glm::vec2 m_imageMax{0.0f, 0.0f};
 };
