@@ -1,6 +1,7 @@
 add_library(app
     src/controllers/FPSController.cpp
     src/controllers/EditorFlyController.cpp
+    src/controllers/MeshSculptController.cpp
 )
 
 target_include_directories(app

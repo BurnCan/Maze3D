@@ -1,7 +1,7 @@
 #include "app/controllers/MeshSculptController.h"
 #include <GLFW/glfw3.h>
 
-namespace tools::mesh_sculpt
+namespace app
 {
 
 MeshSculptController::MeshSculptController(GLFWwindow* window)
@@ -9,9 +9,9 @@ MeshSculptController::MeshSculptController(GLFWwindow* window)
 {
 }
 
-void MeshSculptController::update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy, bool cameraControl)
+void MeshSculptController::update(engine::FPSCamera& camera, float dt, float mouseDx, float mouseDy)
 {
-    if (!m_window || !cameraControl)
+    if (!m_window)
         return;
 
     float speed = m_orbitSpeed * dt;
@@ -35,4 +35,4 @@ void MeshSculptController::update(engine::FPSCamera& camera, float dt, float mou
 }
 
 
-} // namespace tools::mesh_sculpt
+} // namespace app
