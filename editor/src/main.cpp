@@ -27,6 +27,8 @@
 #include <app/controllers/FPSController.h>
 #include <app/controllers/ICameraController.h>
 
+#include "tools/mesh_sculpt/MeshSculptTool.h"
+
 using namespace engine;
 
 const std::filesystem::path assetRoot = MAZE3D_ASSET_ROOT;
@@ -175,6 +177,7 @@ int main()
         // ---------------------------
         FPSCamera camera(60.0f, 16.f/9.f, 0.1f, 100.f);
         camera.setPosition({0.5f, PLAYER_EYE_OFFSET, 0.5f});
+        tools::mesh_sculpt::MeshSculptTool meshSculptTool(&camera);
 
         AppMode mode = AppMode::Editor;
         float lastTime = (float)glfwGetTime();
@@ -189,6 +192,13 @@ int main()
             float now = (float)glfwGetTime();
             float dt  = now - lastTime;
             lastTime = now;
+
+            bool leftClickPressed = glfwGetMouseButton(glfwWindow, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+            bool deleteKeyPressed = glfwGetKey(glfwWindow, GLFW_KEY_DELETE) == GLFW_PRESS;
+
+            // Enable sculpt interaction only while in Editor mode so game controls remain unchanged
+            meshSculptTool.update(dt, mode == AppMode::Editor, leftClickPressed, deleteKeyPressed);
+
 
             // --- ImGui frame ---
             ImGui_ImplOpenGL3_NewFrame();
@@ -309,6 +319,8 @@ int main()
                 collider.build(maze); // rebuild entire collider
             }
 
+            meshSculptTool.renderImGui();
+
 
 
             // --- Camera update ---
@@ -404,6 +416,8 @@ int main()
 
                     mazeMesh.draw(hedgeShader);
             }
+
+            meshSculptTool.renderImGui();
 
 
 
