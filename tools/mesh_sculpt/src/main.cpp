@@ -7,6 +7,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 int main()
 {
@@ -25,7 +26,7 @@ int main()
 
     engine::FPSCamera camera(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
     tools::mesh_sculpt::MeshSculptTool tool(&camera);
-    tools::mesh_sculpt::MeshSculptController controller(window.nativeHandle());
+    app::MeshSculptController controller(window.nativeHandle());
 
     // --- Timing ---
     float lastTime = static_cast<float>(glfwGetTime());
@@ -87,7 +88,8 @@ int main()
         lastMouseY = mouseY;
 
         // --- Update ---
-        controller.update(camera, dt, mouseDx, -mouseDy, cameraControl);
+        if (cameraControl)
+            controller.update(camera, dt, mouseDx, -mouseDy);
         bool leftClick =
             glfwGetMouseButton(window.nativeHandle(),
                             GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
@@ -118,30 +120,7 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        // --- Crosshair ---
-        if (cameraControl)
-        {
-            ImDrawList* drawList = ImGui::GetForegroundDrawList();
-
-            ImVec2 center(
-                ImGui::GetIO().DisplaySize.x * 0.5f,
-                ImGui::GetIO().DisplaySize.y * 0.5f
-            );
-
-            float size = 8.0f;
-            ImU32 color = IM_COL32(255, 255, 255, 255);
-
-            drawList->AddLine(
-                ImVec2(center.x - size, center.y),
-                ImVec2(center.x + size, center.y),
-                color, 2.0f);
-
-            drawList->AddLine(
-                ImVec2(center.x, center.y - size),
-                ImVec2(center.x, center.y + size),
-                color, 2.0f);
-        }
-
+        tool.renderOverlay(glm::vec2(0.0f, 0.0f), glm::vec2(io.DisplaySize.x, io.DisplaySize.y), cameraControl);
 
         tool.renderImGui();
 

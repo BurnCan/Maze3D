@@ -25,7 +25,11 @@
 #include "editor/EditorViewport.h"
 #include <app/controllers/EditorFlyController.h>
 #include <app/controllers/FPSController.h>
+#include <app/controllers/MeshSculptController.h>
 #include <app/controllers/ICameraController.h>
+#include <app/controllers/MeshSculptController.h>
+
+#include "tools/mesh_sculpt/MeshSculptTool.h"
 
 using namespace engine;
 
@@ -126,8 +130,10 @@ int main()
         // ---------------------------
         // Editor viewport + controller
         // ---------------------------
-        EditorViewport viewport(glfwWindow);
-        viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+        EditorViewport gameViewport(glfwWindow, "Game");
+        gameViewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+        EditorViewport sculptViewport(glfwWindow, "Mesh Sculpt Viewport");
+        sculptViewport.setController(std::make_unique<app::MeshSculptController>(glfwWindow));
 
         // ---------------------------
         // ImGui setup
@@ -175,6 +181,7 @@ int main()
         // ---------------------------
         FPSCamera camera(60.0f, 16.f/9.f, 0.1f, 100.f);
         camera.setPosition({0.5f, PLAYER_EYE_OFFSET, 0.5f});
+        tools::mesh_sculpt::MeshSculptTool meshSculptTool(&camera);
 
         AppMode mode = AppMode::Editor;
         float lastTime = (float)glfwGetTime();
@@ -189,6 +196,13 @@ int main()
             float now = (float)glfwGetTime();
             float dt  = now - lastTime;
             lastTime = now;
+
+            bool leftClickPressed = glfwGetMouseButton(glfwWindow, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+            bool deleteKeyPressed = glfwGetKey(glfwWindow, GLFW_KEY_DELETE) == GLFW_PRESS;
+
+            // Enable sculpt interaction only while in Editor mode so game controls remain unchanged
+            meshSculptTool.update(dt, mode == AppMode::Editor, leftClickPressed, deleteKeyPressed);
+
 
             // --- ImGui frame ---
             ImGui_ImplOpenGL3_NewFrame();
@@ -217,13 +231,13 @@ int main()
                 if (isGameMode)
                 {
                     mode = AppMode::Game;
-                    viewport.setController(std::make_unique<app::FPSController>(glfwWindow));
+                    gameViewport.setController(std::make_unique<app::FPSController>(glfwWindow));
                     camera.setPosition({0.5f, PLAYER_EYE_OFFSET, 0.5f});
                 }
                 else
                 {
                     mode = AppMode::Editor;
-                    viewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
+                     gameViewport.setController(std::make_unique<app::EditorFlyController>(glfwWindow));
                 }
             }
 
@@ -237,7 +251,7 @@ int main()
             ImGui::Text("Player Eye Pos: %.2f %.2f %.2f", playerPos.x, playerPos.y, playerPos.z);
 
             // FPSController info
-            auto* fps = dynamic_cast<app::FPSController*>(viewport.getController());
+            auto* fps = dynamic_cast<app::FPSController*>(gameViewport.getController());
             float distance = 0.0f;
             double scrollDelta = 0.0;
             if (fps)
@@ -257,6 +271,7 @@ int main()
 
             ImGui::End();
 
+            ImGui::Begin("Maze Editor");
             ImGui::Text("Maze Editor");
 
             // Cell selection
@@ -309,11 +324,16 @@ int main()
                 collider.build(maze); // rebuild entire collider
             }
 
+            meshSculptTool.renderImGui();
+
+            ImGui::End();
+
+
 
 
             // --- Camera update ---
             bool collisionsEnabled = (mode == AppMode::Game);
-            updateCameraWithCollision(viewport, camera, collider, collisionsEnabled);
+            updateCameraWithCollision(gameViewport, camera, collider, collisionsEnabled);
 
             // Track the player position separately, NOT from camera.position()
             static glm::vec3 playerPos = glm::vec3(0.5f, 0.0f, 0.5f); // fixed base position
@@ -321,7 +341,7 @@ int main()
             // Update playerPos based on controller input
             if (mode == AppMode::Game)
             {
-                auto* fps = dynamic_cast<app::FPSController*>(viewport.getController());
+                auto* fps = dynamic_cast<app::FPSController*>(gameViewport.getController());
                 if (fps)
                 {
                     // Movement
@@ -408,6 +428,8 @@ int main()
 
 
 
+
+
             //Draw player capsule
             if (mode == AppMode::Game)
             {
@@ -430,7 +452,23 @@ int main()
                 capsuleMesh.draw();
             }
 
-            viewport.end();
+            gameViewport.end();
+
+
+
+
+
+            if (mode == AppMode::Editor)
+            {
+                sculptViewport.begin(camera);
+                glClearColor(0.08f, 0.08f, 0.11f, 1.0f);
+                glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+                glDisable(GL_CULL_FACE);
+                meshSculptTool.render();
+                sculptViewport.end();
+                meshSculptTool.renderOverlay(sculptViewport.imageMin(), sculptViewport.imageMax());
+                glEnable(GL_CULL_FACE);
+            }
 
             // --- ImGui render ---
             ImGui::Render();

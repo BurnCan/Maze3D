@@ -9,8 +9,9 @@
 
 #include "engine/scene/FPSCamera.h"
 
-EditorViewport::EditorViewport(GLFWwindow* window)
-    : m_window(window)
+EditorViewport::EditorViewport(GLFWwindow* window, const char* windowName)
+    : m_window(window),
+      m_windowName(windowName)
 {
     glGenFramebuffers(1, &m_fbo);
     glGenTextures(1, &m_color);
@@ -55,7 +56,7 @@ void EditorViewport::resize(int w, int h)
 void EditorViewport::begin(engine::FPSCamera& camera)
 {
     ImGui::SetNextWindowSize(ImVec2(1000, 700), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Game");
+    ImGui::Begin(m_windowName);
 
     ImVec2 avail = ImGui::GetContentRegionAvail();
 
@@ -122,6 +123,11 @@ void EditorViewport::end()
         ImVec2(0, 1),
         ImVec2(1, 0)
     );
+
+    const ImVec2 itemMin = ImGui::GetItemRectMin();
+    const ImVec2 itemMax = ImGui::GetItemRectMax();
+    m_imageMin = glm::vec2(itemMin.x, itemMin.y);
+    m_imageMax = glm::vec2(itemMax.x, itemMax.y);
 
     ImGui::End();
 }

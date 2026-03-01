@@ -9,6 +9,8 @@
 
 namespace tools::mesh_sculpt {
 
+
+
 class MeshSculptTool
 {
 public:
@@ -16,6 +18,7 @@ public:
 
     void update(float dt, bool cameraControl, bool leftClickPressed, bool deleteKeyPressed);
     void render();
+    void renderOverlay(const glm::vec2& viewportMin, const glm::vec2& viewportMax, bool drawCrosshair = true);
     void renderImGui();
 
 private:
