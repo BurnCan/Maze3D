@@ -1,6 +1,7 @@
 #include "engine/window/Window.h"
 #include "engine/scene/FPSCamera.h"
 #include "tools/mesh_sculpt/MeshSculptTool.h"
+#include "tools/mesh_sculpt/MeshSculptUi.h"
 #include "app/controllers/MeshSculptController.h"
 
 #include <imgui.h>
@@ -26,6 +27,7 @@ int main()
 
     engine::FPSCamera camera(45.0f, 1280.0f / 720.0f, 0.1f, 100.0f);
     tools::mesh_sculpt::MeshSculptTool tool(&camera);
+    tools::mesh_sculpt::MeshSculptUi ui;
     app::MeshSculptController controller(window.nativeHandle());
 
     // --- Timing ---
@@ -120,14 +122,22 @@ int main()
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        switch (ui.renderMainMenuBar())
+        {
+            case tools::mesh_sculpt::MeshSculptUi::FileAction::ResetMesh:
+                tool.resetMesh();
+                break;
+            case tools::mesh_sculpt::MeshSculptUi::FileAction::Exit:
+                glfwSetWindowShouldClose(window.nativeHandle(), GLFW_TRUE);
+                break;
+            case tools::mesh_sculpt::MeshSculptUi::FileAction::None:
+                break;
+        }
+
         tool.renderOverlay(glm::vec2(0.0f, 0.0f), glm::vec2(io.DisplaySize.x, io.DisplaySize.y), cameraControl);
 
-        tool.renderImGui();
-
-        ImGui::Begin("Camera/Editor Info");
-        ImGui::Text("Press TAB to toggle camera/edit mode");
-        ImGui::Text("Current mode: %s", cameraControl ? "Camera" : "Edit");
-        ImGui::End();
+        ui.renderToolPanel(tool);
+        ui.renderInfoPanel(cameraControl);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
