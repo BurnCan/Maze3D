@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(mesh_sculpt
     src/main.cpp
     src/MeshSculptTool.cpp
+    src/MeshSculptUi.cpp
     ${CMAKE_SOURCE_DIR}/app/src/controllers/MeshSculptController.cpp   # <-- add this
 )
 
@@ -28,4 +29,3 @@ target_link_libraries(mesh_sculpt PUBLIC maze_engine imgui)
 target_compile_definitions(mesh_sculpt
     PRIVATE PROJECT_ROOT="${CMAKE_SOURCE_DIR}"
 )
-

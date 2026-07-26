@@ -25,6 +25,14 @@ MeshSculptTool::MeshSculptTool(engine::Camera* camera)
     initializeMesh(); // initialize default cube and text buffers
 }
 
+void MeshSculptTool::resetMesh()
+{
+    initializeMesh();
+    m_selectedVertex = -1;
+    m_selectedTriangle = -1;
+    m_isDragging = false;
+}
+
 // ------------------------------------------------------------
 // Camera Ray Helpers
 // ------------------------------------------------------------

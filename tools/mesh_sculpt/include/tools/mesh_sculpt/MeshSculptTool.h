@@ -20,6 +20,7 @@ public:
     void render();
     void renderOverlay(const glm::vec2& viewportMin, const glm::vec2& viewportMax, bool drawCrosshair = true);
     void renderImGui();
+    void resetMesh();
 
 private:
     // ---- Initialization ----
