@@ -11,6 +11,7 @@ include(CTest)
 
 add_library(mesh_sculpt_model
     src/sculpt/SculptMesh.cpp
+    src/sculpt/MeshDocument.cpp
     src/sculpt/MeshSelection.cpp
     src/sculpt/MeshPicker.cpp
     src/sculpt/VertexDragManipulator.cpp
@@ -57,6 +58,10 @@ if(BUILD_TESTING)
     add_executable(mesh_selection_tests tests/MeshSelectionTests.cpp)
     target_link_libraries(mesh_selection_tests PRIVATE mesh_sculpt_model)
     add_test(NAME MeshSelectionTests COMMAND mesh_selection_tests)
+
+    add_executable(mesh_document_tests tests/MeshDocumentTests.cpp)
+    target_link_libraries(mesh_document_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME MeshDocumentTests COMMAND mesh_document_tests)
 
     add_executable(mesh_picker_tests tests/MeshPickerTests.cpp)
     target_link_libraries(mesh_picker_tests PRIVATE mesh_sculpt_model)

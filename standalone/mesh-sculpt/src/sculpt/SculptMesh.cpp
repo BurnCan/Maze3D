@@ -166,4 +166,18 @@ std::string SculptMesh::validationError() const
     return ::mesh_sculpt::sculpt::validationError(m_vertices, m_indices);
 }
 
+bool SculptMesh::equals(const SculptMesh& other) const noexcept
+{
+    if (m_vertices.size() != other.m_vertices.size() || m_indices != other.m_indices)
+        return false;
+    for (std::size_t i = 0; i < m_vertices.size(); ++i)
+    {
+        const auto& left = m_vertices[i];
+        const auto& right = other.m_vertices[i];
+        if (left.x != right.x || left.y != right.y || left.z != right.z)
+            return false;
+    }
+    return true;
+}
+
 } // namespace mesh_sculpt::sculpt

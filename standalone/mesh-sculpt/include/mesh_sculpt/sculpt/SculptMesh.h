@@ -38,6 +38,7 @@ public:
 
     bool isValid() const noexcept;
     std::string validationError() const;
+    bool equals(const SculptMesh& other) const noexcept;
 
 private:
     std::vector<glm::vec3> m_vertices;
