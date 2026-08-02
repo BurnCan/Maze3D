@@ -14,6 +14,7 @@ add_library(mesh_sculpt_model
     src/sculpt/MeshSelection.cpp
     src/sculpt/MeshPicker.cpp
     src/sculpt/VertexDragManipulator.cpp
+    src/sculpt/MeshSculptRenderData.cpp
 )
 target_include_directories(mesh_sculpt_model PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(mesh_sculpt_model PUBLIC glm::glm)
@@ -27,6 +28,7 @@ add_executable(mesh_sculpt
     src/render/FPSCamera.cpp
     src/render/Shader.cpp
     src/sculpt/MeshSculptTool.cpp
+    src/sculpt/MeshSculptRenderer.cpp
     src/sculpt/MeshSculptUi.cpp
 )
 
@@ -60,4 +62,8 @@ if(BUILD_TESTING)
     add_executable(vertex_drag_manipulator_tests tests/VertexDragManipulatorTests.cpp)
     target_link_libraries(vertex_drag_manipulator_tests PRIVATE mesh_sculpt_model)
     add_test(NAME VertexDragManipulatorTests COMMAND vertex_drag_manipulator_tests)
+
+    add_executable(mesh_sculpt_render_data_tests tests/MeshSculptRenderDataTests.cpp)
+    target_link_libraries(mesh_sculpt_render_data_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME MeshSculptRenderDataTests COMMAND mesh_sculpt_render_data_tests)
 endif()

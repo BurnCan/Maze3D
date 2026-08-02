@@ -16,10 +16,7 @@ namespace mesh_sculpt::sculpt {
 // ------------------------------------------------------------
 MeshSculptTool::MeshSculptTool(mesh_sculpt::render::Camera* camera)
     : m_camera(camera),
-      m_shader(std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/basic.vert",
-               std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/basic.frag"),
-      m_highlightShader(std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/highlight.vert",
-                        std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/highlight.frag")
+      m_renderer(camera)
 {
     initializeMesh(); // initialize default cube and text buffers
 }
@@ -65,7 +62,7 @@ void MeshSculptTool::updateDrag(const Ray& ray)
         return;
     if (!m_sculptMesh.setVertex(*selectedVertex, *position))
         return;
-    uploadMeshToGpu();
+    m_renderer.upload(m_sculptMesh);
     syncVerticesToText();
 }
 
@@ -85,20 +82,12 @@ void MeshSculptTool::endDrag() noexcept
 void MeshSculptTool::initializeMesh()
 {
     m_sculptMesh = SculptMesh::makeDefaultCube();
-    uploadMeshToGpu();
+    m_renderer.upload(m_sculptMesh);
     m_selection.clear();
     m_dragManipulator.end();
     m_meshInputError.clear();
     syncVerticesToText();
     syncIndicesToText();
-}
-
-void MeshSculptTool::uploadMeshToGpu()
-{
-    m_mesh.setVertices(m_sculptMesh.vertices());
-    m_mesh.setIndices(m_sculptMesh.indices());
-    m_mesh.upload();
-    validateSelection();
 }
 
 void MeshSculptTool::validateSelection()
@@ -132,7 +121,7 @@ void MeshSculptTool::applyMeshText()
     m_meshInputError.clear();
     m_selection.clear();
     m_dragManipulator.end();
-    uploadMeshToGpu();
+    m_renderer.upload(m_sculptMesh);
 }
 
 void MeshSculptTool::syncVerticesToText()
@@ -158,7 +147,7 @@ void MeshSculptTool::deleteSelectedTriangle()
     }
 
     m_selection.clearTriangle();
-    uploadMeshToGpu();
+    m_renderer.upload(m_sculptMesh);
     syncIndicesToText();
 }
 
@@ -232,79 +221,7 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed,
 // ------------------------------------------------------------
 void MeshSculptTool::render()
 {
-    if (!m_camera) return;
-
-    glm::mat4 model = glm::mat4(1.f);
-    glm::mat4 view  = m_camera->view();
-    glm::mat4 proj  = m_camera->projection();
-
-    // Wireframe mesh
-    m_shader.bind();
-    m_shader.setMat4("uModel", model);
-    m_shader.setMat4("uView", view);
-    m_shader.setMat4("uProj", proj);
-    m_shader.setVec3("uColor", glm::vec3(0.7f,0.7f,0.8f));
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    m_mesh.draw();
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-    // All vertices
-    glBindVertexArray(m_mesh.vao());
-    glEnable(GL_PROGRAM_POINT_SIZE);
-    glPointSize(8.0f);
-    m_shader.setVec3("uColor", glm::vec3(0.2f,0.9f,0.3f));
-    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_sculptMesh.vertices().size()));
-    glBindVertexArray(0);
-
-    // Highlight selected vertex
-    if (const auto selectedVertex = m_selection.selectedVertex(); selectedVertex && *selectedVertex < m_sculptMesh.vertices().size())
-    {
-        m_highlightShader.bind();
-        m_highlightShader.setMat4("uModel", model);
-        m_highlightShader.setMat4("uView", view);
-        m_highlightShader.setMat4("uProj", proj);
-        m_highlightShader.setVec3("uColor", glm::vec3(1.f,0.2f,0.2f));
-
-        glBindVertexArray(m_mesh.vao());
-        glPointSize(18.0f);
-        glDrawArrays(GL_POINTS, static_cast<GLint>(*selectedVertex), 1);
-        glBindVertexArray(0);
-    }
-    // Highlight selected triangle
-    if (const auto selectedTriangle = m_selection.selectedTriangle())
-    {
-        //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        const auto& indices = m_sculptMesh.indices();
-        const size_t triBase = *selectedTriangle * 3;
-
-        if (triBase + 2 >= indices.size())
-        {
-            m_selection.clearTriangle();
-        }
-        else
-        {
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-            m_highlightShader.bind();
-            m_highlightShader.setMat4("uModel", model);
-            m_highlightShader.setMat4("uView", view);
-            m_highlightShader.setMat4("uProj", proj);
-            m_highlightShader.setVec3("uColor", glm::vec3(1.0f, 0.3f, 0.1f));
-
-            glBindVertexArray(m_mesh.vao());
-
-            glDrawElements(GL_TRIANGLES,
-                        3,
-                        GL_UNSIGNED_INT,
-                        (void*)(triBase * sizeof(unsigned int)));
-
-            glBindVertexArray(0);
-
-            glDisable(GL_POLYGON_OFFSET_FILL);
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        }
-
-    }
+    m_renderer.render(m_sculptMesh, m_selection);
 }
 
 
@@ -401,7 +318,7 @@ void MeshSculptTool::renderImGui()
         if (ImGui::DragFloat3("Edit Position", &v.x, 0.01f) &&
             m_sculptMesh.setVertex(*selectedVertex, v))
         {
-            uploadMeshToGpu();
+            m_renderer.upload(m_sculptMesh);
             syncVerticesToText();
         }
     }

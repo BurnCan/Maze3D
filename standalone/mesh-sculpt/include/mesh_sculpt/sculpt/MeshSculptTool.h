@@ -3,9 +3,8 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-#include "mesh_sculpt/render/Shader.h"
-#include "mesh_sculpt/render/DynamicMesh.h"
 #include "mesh_sculpt/render/Camera.h"
+#include "mesh_sculpt/sculpt/MeshSculptRenderer.h"
 #include "mesh_sculpt/sculpt/SculptMesh.h"
 #include "mesh_sculpt/sculpt/MeshPicker.h"
 #include "mesh_sculpt/sculpt/MeshSelection.h"
@@ -32,7 +31,6 @@ private:
 
     // ---- Mesh Editing ----
     void applyMeshText();
-    void uploadMeshToGpu();
     void validateSelection();
     bool copyTextToBuffer(const std::string& text, char* buffer, size_t size, const char* label);
 
@@ -48,10 +46,8 @@ private:
 private:
     mesh_sculpt::render::Camera* m_camera = nullptr;
 
-    mesh_sculpt::render::DynamicMesh m_mesh;
     SculptMesh m_sculptMesh;
-    mesh_sculpt::render::Shader m_shader;
-    mesh_sculpt::render::Shader m_highlightShader;
+    MeshSculptRenderer m_renderer;
 
     // ---- Selection ----
     MeshSelection m_selection;
