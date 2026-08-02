@@ -9,38 +9,51 @@ MeshSculptTool::MeshSculptTool(render::Camera* camera) : m_camera(camera), m_ren
 
 void MeshSculptTool::initializeMesh()
 {
-    m_sculptMesh = SculptMesh::makeDefaultCube();
-    m_renderer.upload(m_sculptMesh);
-    m_selection.clear();
+    m_renderer.upload(m_document.mesh());
     m_dragManipulator.end();
     m_editorUi.clearError();
-    m_editorUi.synchronizeAll(m_sculptMesh);
+    m_editorUi.synchronizeAll(m_document.mesh());
 }
 
-void MeshSculptTool::resetMesh() { initializeMesh(); }
-
-void MeshSculptTool::validateSelection()
+void MeshSculptTool::resetMesh()
 {
-    m_selection.validateAgainst(m_sculptMesh);
-    if (!m_selection.selectedVertex())
+    const auto result = m_document.resetToDefault();
+    synchronizeAfterDocumentChange(result, true);
+    if (result.success)
+        m_editorUi.clearError();
+}
+
+void MeshSculptTool::synchronizeAfterDocumentChange(
+    const MeshDocument::MutationResult& result, bool endActiveDrag)
+{
+    if (!result.success)
+        return;
+    if (endActiveDrag)
         m_dragManipulator.end();
+    if (!result.geometryChanged)
+        return;
+    m_renderer.upload(m_document.mesh());
+    if (result.verticesChanged)
+        m_editorUi.synchronizeVertices(m_document.mesh());
+    if (result.indicesChanged)
+        m_editorUi.synchronizeIndices(m_document.mesh());
 }
 
 void MeshSculptTool::beginDrag(const Ray& ray)
 {
-    const auto selected = m_selection.selectedVertex();
-    if (!selected || *selected >= m_sculptMesh.vertices().size())
+    const auto selected = m_document.selection().selectedVertex();
+    if (!selected || *selected >= m_document.mesh().vertices().size())
     {
         m_dragManipulator.end();
         return;
     }
-    m_dragManipulator.begin(m_sculptMesh.vertices()[*selected], ray.direction, ray);
+    m_dragManipulator.begin(m_document.mesh().vertices()[*selected], ray.direction, ray);
 }
 
 void MeshSculptTool::updateDrag(const Ray& ray)
 {
-    const auto selected = m_selection.selectedVertex();
-    if (!selected || *selected >= m_sculptMesh.vertices().size())
+    const auto selected = m_document.selection().selectedVertex();
+    if (!selected || *selected >= m_document.mesh().vertices().size())
     {
         m_dragManipulator.end();
         return;
@@ -48,28 +61,24 @@ void MeshSculptTool::updateDrag(const Ray& ray)
     const auto position = m_dragManipulator.update(ray);
     if (!position)
         return;
-    const glm::vec3 difference = *position - m_sculptMesh.vertices()[*selected];
-    if (glm::dot(difference, difference) <= 1.0e-12f || !m_sculptMesh.setVertex(*selected, *position))
+    const auto result = m_document.setVertex(*selected, *position);
+    if (!result.success)
+    {
+        endDrag();
         return;
-    m_renderer.upload(m_sculptMesh);
-    m_editorUi.synchronizeVertices(m_sculptMesh);
+    }
+    synchronizeAfterDocumentChange(result, false);
 }
 
 void MeshSculptTool::endDrag() noexcept { m_dragManipulator.end(); }
 
 void MeshSculptTool::deleteSelectedTriangle()
 {
-    const auto triangle = m_selection.selectedTriangle();
+    const auto triangle = m_document.selection().selectedTriangle();
     if (!triangle)
         return;
-    if (!m_sculptMesh.deleteTriangle(*triangle))
-    {
-        validateSelection();
-        return;
-    }
-    m_selection.clearTriangle();
-    m_renderer.upload(m_sculptMesh);
-    m_editorUi.synchronizeIndices(m_sculptMesh);
+    const auto result = m_document.deleteTriangle(*triangle);
+    synchronizeAfterDocumentChange(result, false);
 }
 
 void MeshSculptTool::processEditorAction(const MeshEditorAction& action)
@@ -78,25 +87,24 @@ void MeshSculptTool::processEditorAction(const MeshEditorAction& action)
     {
     case MeshEditorAction::Type::ApplyMeshText:
     {
-        const auto result = m_sculptMesh.replaceFromText(action.verticesText, action.indicesText);
+        const auto result = m_document.replaceFromText(action.verticesText, action.indicesText);
         if (!result.success)
         {
             m_editorUi.setError(result.error);
             return;
         }
-        m_selection.clear();
-        m_dragManipulator.end();
-        m_renderer.upload(m_sculptMesh);
         m_editorUi.clearError();
-        m_editorUi.synchronizeAll(m_sculptMesh);
+        synchronizeAfterDocumentChange(result, true);
         break;
     }
     case MeshEditorAction::Type::UpdateSelectedVertex:
-        if (const auto vertex = m_selection.selectedVertex();
-            vertex && m_sculptMesh.setVertex(*vertex, action.vertexPosition))
+        if (const auto vertex = m_document.selection().selectedVertex(); vertex)
         {
-            m_renderer.upload(m_sculptMesh);
-            m_editorUi.synchronizeVertices(m_sculptMesh);
+            const auto result = m_document.setVertex(*vertex, action.vertexPosition);
+            if (!result.success)
+                endDrag();
+            else
+                synchronizeAfterDocumentChange(result, false);
         }
         break;
     case MeshEditorAction::Type::DeleteSelectedTriangle:
@@ -116,8 +124,8 @@ void MeshSculptTool::update(float, bool cameraControl, bool leftClickPressed, bo
         const auto ray = makeCameraForwardRay(*m_camera);
         if (ray)
         {
-            if (const auto vertex = m_picker.pickVertex(m_sculptMesh, *ray)) m_selection.selectVertex(*vertex);
-            else m_selection.clearVertex();
+            if (const auto vertex = m_picker.pickVertex(m_document.mesh(), *ray)) m_document.selectVertex(*vertex);
+            else m_document.clearVertexSelection();
             beginDrag(*ray);
         }
     }
@@ -125,8 +133,8 @@ void MeshSculptTool::update(float, bool cameraControl, bool leftClickPressed, bo
     {
         if (const auto ray = makeCameraForwardRay(*m_camera))
         {
-            if (const auto triangle = m_picker.pickTriangle(m_sculptMesh, *ray)) m_selection.selectTriangle(*triangle);
-            else m_selection.clearTriangle();
+            if (const auto triangle = m_picker.pickTriangle(m_document.mesh(), *ray)) m_document.selectTriangle(*triangle);
+            else m_document.clearTriangleSelection();
         }
     }
     if (m_dragManipulator.isActive())
@@ -135,9 +143,9 @@ void MeshSculptTool::update(float, bool cameraControl, bool leftClickPressed, bo
         else endDrag();
     }
     if (m_dragManipulator.isActive() && !leftClickPressed) endDrag();
-    if (m_selection.selectedTriangle() && deleteKeyPressed) deleteSelectedTriangle();
+    if (m_document.selection().selectedTriangle() && deleteKeyPressed) deleteSelectedTriangle();
 }
 
-void MeshSculptTool::render() { m_renderer.render(m_sculptMesh, m_selection); }
+void MeshSculptTool::render() { m_renderer.render(m_document.mesh(), m_document.selection()); }
 
 } // namespace mesh_sculpt::sculpt

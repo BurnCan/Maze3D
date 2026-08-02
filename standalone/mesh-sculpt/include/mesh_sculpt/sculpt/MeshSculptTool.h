@@ -1,11 +1,10 @@
 #pragma once
 
 #include "mesh_sculpt/render/Camera.h"
+#include "mesh_sculpt/sculpt/MeshDocument.h"
 #include "mesh_sculpt/sculpt/MeshSculptEditorUi.h"
 #include "mesh_sculpt/sculpt/MeshSculptRenderer.h"
-#include "mesh_sculpt/sculpt/SculptMesh.h"
 #include "mesh_sculpt/sculpt/MeshPicker.h"
-#include "mesh_sculpt/sculpt/MeshSelection.h"
 #include "mesh_sculpt/sculpt/VertexDragManipulator.h"
 
 namespace mesh_sculpt::sculpt {
@@ -21,8 +20,8 @@ public:
     void render();
     void resetMesh();
     void processEditorAction(const MeshEditorAction& action);
-    const SculptMesh& mesh() const noexcept { return m_sculptMesh; }
-    const MeshSelection& selection() const noexcept { return m_selection; }
+    const SculptMesh& mesh() const noexcept { return m_document.mesh(); }
+    const MeshSelection& selection() const noexcept { return m_document.selection(); }
     const mesh_sculpt::render::Camera& camera() const noexcept { return *m_camera; }
     MeshSculptEditorUi& editorUi() noexcept { return m_editorUi; }
 
@@ -31,7 +30,8 @@ private:
     void initializeMesh();
 
     // ---- Mesh Editing ----
-    void validateSelection();
+    void synchronizeAfterDocumentChange(const MeshDocument::MutationResult& result,
+                                        bool endActiveDrag);
 
     // ---- Picking & Dragging ----
     void beginDrag(const Ray& ray);
@@ -43,11 +43,10 @@ private:
 private:
     mesh_sculpt::render::Camera* m_camera = nullptr;
 
-    SculptMesh m_sculptMesh;
+    MeshDocument m_document;
     MeshSculptRenderer m_renderer;
 
     // ---- Selection ----
-    MeshSelection m_selection;
     MeshPicker m_picker;
 
     // ---- Drag State ----
