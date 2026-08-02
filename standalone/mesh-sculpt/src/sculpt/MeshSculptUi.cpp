@@ -1,7 +1,5 @@
 #include "mesh_sculpt/sculpt/MeshSculptUi.h"
 
-#include "mesh_sculpt/sculpt/MeshSculptTool.h"
-
 #include <imgui.h>
 
 namespace mesh_sculpt::sculpt {
@@ -68,11 +66,6 @@ void MeshSculptUi::renderInfoPanel(bool cameraControl) const
     ImGui::Text("Press TAB to toggle camera/edit mode");
     ImGui::Text("Current mode: %s", cameraControl ? "Camera" : "Edit");
     ImGui::End();
-}
-
-void MeshSculptUi::renderToolPanel(MeshSculptTool& tool) const
-{
-    tool.renderImGui();
 }
 
 } // namespace mesh_sculpt::sculpt

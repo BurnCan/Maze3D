@@ -2,8 +2,6 @@
 
 namespace mesh_sculpt::sculpt {
 
-class MeshSculptTool;
-
 class MeshSculptUi
 {
 public:
@@ -16,7 +14,6 @@ public:
 
     FileAction renderMainMenuBar();
     void renderInfoPanel(bool cameraControl) const;
-    void renderToolPanel(MeshSculptTool& tool) const;
 };
 
 } // namespace mesh_sculpt::sculpt

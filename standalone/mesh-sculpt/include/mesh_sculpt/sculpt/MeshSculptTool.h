@@ -1,9 +1,7 @@
 #pragma once
 
-#include <vector>
-#include <glm/glm.hpp>
-
 #include "mesh_sculpt/render/Camera.h"
+#include "mesh_sculpt/sculpt/MeshSculptEditorUi.h"
 #include "mesh_sculpt/sculpt/MeshSculptRenderer.h"
 #include "mesh_sculpt/sculpt/SculptMesh.h"
 #include "mesh_sculpt/sculpt/MeshPicker.h"
@@ -21,26 +19,25 @@ public:
 
     void update(float dt, bool cameraControl, bool leftClickPressed, bool deleteKeyPressed);
     void render();
-    void renderOverlay(const glm::vec2& viewportMin, const glm::vec2& viewportMax, bool drawCrosshair = true);
-    void renderImGui();
     void resetMesh();
+    void processEditorAction(const MeshEditorAction& action);
+    const SculptMesh& mesh() const noexcept { return m_sculptMesh; }
+    const MeshSelection& selection() const noexcept { return m_selection; }
+    const mesh_sculpt::render::Camera& camera() const noexcept { return *m_camera; }
+    MeshSculptEditorUi& editorUi() noexcept { return m_editorUi; }
 
 private:
     // ---- Initialization ----
     void initializeMesh();
 
     // ---- Mesh Editing ----
-    void applyMeshText();
     void validateSelection();
-    bool copyTextToBuffer(const std::string& text, char* buffer, size_t size, const char* label);
 
     // ---- Picking & Dragging ----
     void beginDrag(const Ray& ray);
     void updateDrag(const Ray& ray);
     void endDrag() noexcept;
 
-    void syncVerticesToText();
-    void syncIndicesToText();
     void deleteSelectedTriangle();
 
 private:
@@ -55,12 +52,7 @@ private:
 
     // ---- Drag State ----
     VertexDragManipulator m_dragManipulator;
-
-    // ---- ImGui text buffers ----
-    static constexpr size_t BUF_SIZE = 8192;
-    char m_verticesBuf[BUF_SIZE] = {0};
-    char m_indicesBuf[BUF_SIZE] = {0};
-    std::string m_meshInputError;
+    MeshSculptEditorUi m_editorUi;
 };
 
 } // namespace mesh_sculpt::sculpt
