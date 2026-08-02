@@ -15,6 +15,8 @@ add_library(mesh_sculpt_model
     src/sculpt/MeshPicker.cpp
     src/sculpt/VertexDragManipulator.cpp
     src/sculpt/MeshSculptRenderData.cpp
+    src/sculpt/MeshEditorState.cpp
+    src/sculpt/MeshOverlayData.cpp
 )
 target_include_directories(mesh_sculpt_model PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(mesh_sculpt_model PUBLIC glm::glm)
@@ -30,6 +32,7 @@ add_executable(mesh_sculpt
     src/sculpt/MeshSculptTool.cpp
     src/sculpt/MeshSculptRenderer.cpp
     src/sculpt/MeshSculptUi.cpp
+    src/sculpt/MeshSculptEditorUi.cpp
 )
 
 target_include_directories(mesh_sculpt PRIVATE ${PROJECT_SOURCE_DIR}/include)
@@ -66,4 +69,12 @@ if(BUILD_TESTING)
     add_executable(mesh_sculpt_render_data_tests tests/MeshSculptRenderDataTests.cpp)
     target_link_libraries(mesh_sculpt_render_data_tests PRIVATE mesh_sculpt_model)
     add_test(NAME MeshSculptRenderDataTests COMMAND mesh_sculpt_render_data_tests)
+
+    add_executable(mesh_editor_state_tests tests/MeshEditorTextStateTests.cpp)
+    target_link_libraries(mesh_editor_state_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME MeshEditorTextStateTests COMMAND mesh_editor_state_tests)
+
+    add_executable(mesh_overlay_data_tests tests/MeshOverlayDataTests.cpp)
+    target_link_libraries(mesh_overlay_data_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME MeshOverlayDataTests COMMAND mesh_overlay_data_tests)
 endif()

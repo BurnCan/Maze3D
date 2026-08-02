@@ -199,11 +199,12 @@ private:
         ImGui::NewFrame();
 
         processMenuAction(m_ui->renderMainMenuBar());
-        m_tool->renderOverlay(
+        m_tool->editorUi().renderOverlay(m_tool->camera(), m_tool->mesh(), m_tool->selection(),
             glm::vec2(0.0f, 0.0f),
             glm::vec2(io.DisplaySize.x, io.DisplaySize.y),
             m_cameraControl);
-        m_ui->renderToolPanel(*m_tool);
+        m_tool->processEditorAction(
+            m_tool->editorUi().renderToolPanel(m_tool->mesh(), m_tool->selection()));
         m_ui->renderInfoPanel(m_cameraControl);
 
         ImGui::Render();
