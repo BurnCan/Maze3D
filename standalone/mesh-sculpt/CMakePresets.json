@@ -1,0 +1,6 @@
+{"version":3,"cmakeMinimumRequired":{"major":3,"minor":20,"patch":0},"configurePresets":[
+{"name":"dev","binaryDir":"${sourceDir}/build/dev","cacheVariables":{"CMAKE_BUILD_TYPE":"Debug","BUILD_TESTING":"ON","MESH_SCULPT_BUILD_TESTS":"ON"}},
+{"name":"release","binaryDir":"${sourceDir}/build/release","cacheVariables":{"CMAKE_BUILD_TYPE":"Release","BUILD_TESTING":"OFF"}},
+{"name":"ci-gcc","inherits":"dev","binaryDir":"${sourceDir}/build/ci-gcc","cacheVariables":{"CMAKE_CXX_COMPILER":"g++","MESH_SCULPT_WARNINGS_AS_ERRORS":"ON"}},
+{"name":"ci-clang","inherits":"release","binaryDir":"${sourceDir}/build/ci-clang","cacheVariables":{"CMAKE_CXX_COMPILER":"clang++","BUILD_TESTING":"ON","MESH_SCULPT_BUILD_TESTS":"ON"}},
+{"name":"ci-msvc","inherits":"release","binaryDir":"${sourceDir}/build/ci-msvc","cacheVariables":{"BUILD_TESTING":"ON","MESH_SCULPT_BUILD_TESTS":"ON"}}]}

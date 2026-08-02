@@ -3,6 +3,7 @@
 #include "mesh_sculpt/render/Camera.h"
 #include "mesh_sculpt/render/DynamicMesh.h"
 #include "mesh_sculpt/render/Shader.h"
+#include "mesh_sculpt/platform/AssetLocator.h"
 #include "mesh_sculpt/sculpt/MeshSculptRenderData.h"
 
 #include <glad/glad.h>
@@ -88,11 +89,12 @@ class MeshSculptRenderer::Impl
 public:
     explicit Impl(const render::Camera* camera) : camera(camera)
     {
-        const std::filesystem::path shaderRoot =
-            std::filesystem::path(MESH_SCULPT_ASSET_ROOT) / "shaders";
-        shader = loadShader("base", shaderRoot / "basic.vert", shaderRoot / "basic.frag");
+        const auto basicVertex = platform::AssetLocator::resolve("shaders/basic.vert");
+        const auto basicFragment = platform::AssetLocator::resolve("shaders/basic.frag");
+        shader = loadShader("base", basicVertex, basicFragment);
         highlightShader = loadShader(
-            "highlight", shaderRoot / "highlight.vert", shaderRoot / "highlight.frag");
+            "highlight", platform::AssetLocator::resolve("shaders/highlight.vert"),
+            platform::AssetLocator::resolve("shaders/highlight.frag"));
     }
 
     const render::Camera* camera;

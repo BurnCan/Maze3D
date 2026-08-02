@@ -1,97 +1,50 @@
 # Mesh Sculpt
 
-Mesh Sculpt is a small interactive OpenGL mesh editor. This directory is a
-self-contained extraction staging area intended to become a standalone
-repository in the future. The implementation was extracted from
-[`BurnCan/Maze3D`](https://github.com/BurnCan/Maze3D).
+Mesh Sculpt is a small C++20 desktop editor for indexed triangle meshes. The final product name remains undecided.
 
-## Features
+## Capabilities
 
-- GLFW window and OpenGL rendering with a movable FPS-style camera
-- Tab-selectable camera and editing modes
-- Vertex and triangle picking, selected-element overlays, and vertex dragging
-- Triangle deletion
-- Editable vertex and triangle-index text
-- **New**, **Open**, **Save**, **Save As**, **Reset Mesh**, and **Exit** menu actions
+It provides OpenGL rendering, an FPS camera, vertex/triangle picking, vertex dragging, triangle deletion, editable geometry text, and New/Open/Save/Save As. No screenshot is currently checked in.
 
-## Indexed geometry files
+## Platforms and prerequisites
 
-The tool's project-local `.meshgeo` extension stores portable, human-readable
-indexed geometry. The extension is temporary and may change when the standalone
-application receives its final product name. Version 1 has this JSON schema:
+Linux/GCC is verified locally; Ubuntu GCC, Ubuntu Clang, and Windows MSVC are covered by the ready-to-move CI template. Windows is compiled but the graphical program is not launched in CI. macOS is unverified. Requirements are CMake 3.20+, Git, a C++20 compiler, OpenGL, and GLFW's platform development libraries. CMake downloads dependencies, so first configuration and clean-copy verification may require network access.
 
-```json
-{
-  "format": "indexed-geometry",
-  "version": 1,
-  "primitive": "triangles",
-  "vertices": [
-    [0.0, 0.0, 0.0],
-    [1.0, 0.0, 0.0],
-    [0.0, 1.0, 0.0]
-  ],
-  "indices": [0, 1, 2]
-}
-```
-
-Each vertex is exactly three finite coordinates. Indices are zero-based unsigned
-integers, and every consecutive group of three describes one triangle. Vertex
-and index ordering is preserved, so triangle winding is preserved. All five
-shown fields are required and their semantic values are versioned. Version 1
-readers ignore unknown top-level fields for limited forward compatibility;
-re-saving does not preserve those fields. Unsupported format identifiers,
-versions, primitives, and malformed geometry are rejected transactionally.
-
-Version 1 intentionally contains only one indexed triangle mesh. It has no
-normals, texture coordinates, materials, transforms, scene hierarchy, or
-compression, and it does not claim compatibility with other geometry formats.
-Saving writes a complete temporary file beside the destination and then replaces
-the destination. POSIX rename replacement is atomic; on platforms whose rename
-API cannot replace an existing file, the save reports an error and retains the
-old destination.
-
-## Requirements and dependencies
-
-A C++20 compiler, CMake 3.20 or newer, Git, and OpenGL development files are
-required. CMake fetches GLFW 3.3.9, GLAD 0.1.36, GLM 0.9.9.8, Dear ImGui
-1.91.9 (docking), nlohmann/json 3.11.3, and portable-file-dialogs 0.1.0.
-
-Linux is the only environment verified during this extraction. On Debian or
-Ubuntu, install a compiler, CMake, Git, and the X11/OpenGL development packages
-needed by GLFW, then run:
+## Build and test
 
 ```bash
-cmake -S standalone/mesh-sculpt -B build/mesh-sculpt
-cmake --build build/mesh-sculpt
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build
+ctest --test-dir build --output-on-failure
 ```
 
-The same CMake commands should be usable from a macOS Terminal with Xcode
-Command Line Tools and CMake installed, or from a Windows Developer PowerShell
-with Visual Studio's C++ workload, CMake, and Git installed. Those platforms
-have not yet been verified, so they are not currently claimed as supported.
+Use `-DMESH_SCULPT_BUILD_APP=OFF` for graphics-independent core/I/O work, `-DMESH_SCULPT_WARNINGS_AS_ERRORS=ON` for strict first-party warnings, or `-DMESH_SCULPT_ENABLE_SANITIZERS=ON` for AddressSanitizer and UndefinedBehaviorSanitizer with supported non-Windows GCC/Clang toolchains. Presets `dev`, `release`, `ci-gcc`, `ci-clang`, and `ci-msvc` are provided.
 
-## Running
+Run `./build/mesh_sculpt` (multi-config builds may use `build/Debug/mesh_sculpt.exe`). Shaders are copied to `assets` beside the build-tree executable. Runtime lookup tries executable-adjacent assets, then `<prefix>/share/mesh-sculpt`, then a development-only source fallback, and reports every attempted path.
 
-From the Maze3D repository root after building:
+## Install and package
 
 ```bash
-./build/mesh-sculpt/mesh_sculpt
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+cmake --build build-release
+cmake --install build-release --prefix install-root
+(cd build-release && cpack)
 ```
 
-Multi-configuration generators may place the executable in a configuration
-subdirectory such as `build/mesh-sculpt/Debug/mesh_sculpt.exe`.
+Installation places the executable in `bin`, shaders in `share/mesh-sculpt/shaders`, and documentation/notices in the platform CMake documentation directory. CPack produces TGZ and ZIP archives.
 
 ## Controls
 
-| Input | Action |
-| --- | --- |
-| `Tab` | Toggle camera/edit mode |
-| Mouse | Look around in camera mode |
-| `W` / `S` | Move forward/backward |
-| `A` / `D` | Strafe left/right |
-| `Q` / `E` | Move down/up |
-| Left mouse button | Select and drag a vertex in the sculpt interaction mode |
-| `Delete` | Delete the selected triangle |
+`Tab` toggles camera/edit mode. Mouse look and `W/S/A/D/Q/E` move the camera. Left click selects or drags a vertex; `Delete` removes the selected triangle. Menus manage documents.
 
-The on-screen panels expose the vertex/index text and current mode. The File
-menu provides document creation, `.meshgeo` open/save, reset, and exit actions.
+## `.meshgeo` format
+
+Version 1 is deterministic JSON with `format: indexed-geometry`, `version: 1`, `primitive: triangles`, finite three-component `vertices`, and unsigned triangle `indices`. `examples/cube.meshgeo` is a canonical example. It intentionally has no normals, materials, transforms, hierarchy, or compression.
+
+## Architecture and dependencies
+
+`mesh_sculpt_core` contains graphics-independent document/geometry logic; `mesh_sculpt_io` adds the versioned codec and filesystem service; `mesh_sculpt_platform` resolves assets; the `mesh_sculpt` executable owns graphics and UI. See [architecture details](docs/ARCHITECTURE.md). Direct fetched dependencies are GLFW, GLAD, GLM, Dear ImGui, portable-file-dialogs, and nlohmann/json; see [third-party notices](THIRD_PARTY_NOTICES.md).
+
+## Limitations, provenance, and contributing
+
+There is no undo, autosave, alternative geometry format, or headless graphical smoke test. This standalone project was extracted from [`BurnCan/Maze3D`](https://github.com/BurnCan/Maze3D); that historical attribution is not a build dependency. No first-party redistribution license is currently declared; see [license status](LICENSE_STATUS.md). See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting changes and [the migration checklist](docs/REPOSITORY_MIGRATION.md) before extraction.

@@ -1,13 +1,15 @@
 #include "mesh_sculpt/app/SculptApplication.h"
+#include "mesh_sculpt/platform/AssetLocator.h"
 
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 
-int main()
+int main(int argc, char** argv)
 {
     try
     {
+        if (argc > 0) mesh_sculpt::platform::AssetLocator::setExecutablePath(argv[0]);
         mesh_sculpt::app::SculptApplication application;
         return application.run();
     }
