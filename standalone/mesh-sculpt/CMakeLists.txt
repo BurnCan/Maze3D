@@ -10,6 +10,7 @@ find_package(OpenGL REQUIRED)
 
 add_executable(mesh_sculpt
     src/main.cpp
+    src/app/SculptApplication.cpp
     src/app/MeshSculptController.cpp
     src/platform/Window.cpp
     src/render/DynamicMesh.cpp
