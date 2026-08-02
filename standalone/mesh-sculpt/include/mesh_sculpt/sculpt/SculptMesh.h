@@ -18,9 +18,12 @@ public:
         bool success = false;
         std::string error;
     };
+    struct CreateResult;
 
     SculptMesh() = default;
     static SculptMesh makeDefaultCube();
+    static CreateResult create(std::vector<glm::vec3> vertices,
+                               std::vector<std::uint32_t> indices);
 
     const std::vector<glm::vec3>& vertices() const noexcept { return m_vertices; }
     const std::vector<std::uint32_t>& indices() const noexcept { return m_indices; }
@@ -43,6 +46,13 @@ public:
 private:
     std::vector<glm::vec3> m_vertices;
     std::vector<std::uint32_t> m_indices;
+};
+
+struct SculptMesh::CreateResult
+{
+    bool success = false;
+    SculptMesh mesh;
+    std::string error;
 };
 
 } // namespace mesh_sculpt::sculpt

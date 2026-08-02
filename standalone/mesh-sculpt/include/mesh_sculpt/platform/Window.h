@@ -1,4 +1,5 @@
 #pragma once
+#include <string_view>
 
 struct GLFWwindow;
 
@@ -18,6 +19,7 @@ public:
     bool shouldClose() const;
     void pollEvents();
     void swapBuffers();
+    void setTitle(std::string_view title);
     GLFWwindow* nativeHandle() const { return m_window; }
 
 private:

@@ -1,6 +1,7 @@
 #include "mesh_sculpt/platform/Window.h"
 
 #include <stdexcept>
+#include <string>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
@@ -99,6 +100,12 @@ void Window::pollEvents()
 void Window::swapBuffers()
 {
     glfwSwapBuffers(m_window);
+}
+
+void Window::setTitle(std::string_view title)
+{
+    const std::string owned(title);
+    glfwSetWindowTitle(m_window, owned.c_str());
 }
 
 } // namespace mesh_sculpt::platform

@@ -1,4 +1,5 @@
 #include "mesh_sculpt/sculpt/MeshSculptTool.h"
+#include "mesh_sculpt/io/GeometryFileService.h"
 
 namespace mesh_sculpt::sculpt {
 
@@ -21,6 +22,50 @@ void MeshSculptTool::resetMesh()
     synchronizeAfterDocumentChange(result, true);
     if (result.success)
         m_editorUi.clearError();
+}
+
+void MeshSculptTool::newDocument()
+{
+    const auto result = m_document.replaceMesh(SculptMesh::makeDefaultCube());
+    synchronizeAfterDocumentChange(result, true);
+    m_currentDocumentPath.reset();
+    m_document.markSaved();
+    m_editorUi.clearError();
+}
+
+bool MeshSculptTool::openDocument(const std::filesystem::path& path)
+{
+    auto loaded = io::GeometryFileService::load(path);
+    if (!loaded.success)
+    {
+        m_editorUi.setError(loaded.error);
+        return false;
+    }
+    const auto result = m_document.replaceMesh(std::move(loaded.mesh));
+    if (!result.success)
+    {
+        m_editorUi.setError(result.error);
+        return false;
+    }
+    synchronizeAfterDocumentChange(result, true);
+    m_document.markSaved();
+    m_currentDocumentPath = path;
+    m_editorUi.clearError();
+    return true;
+}
+
+bool MeshSculptTool::saveDocument(const std::filesystem::path& path)
+{
+    const auto saved = io::GeometryFileService::save(path, m_document.mesh());
+    if (!saved.success)
+    {
+        m_editorUi.setError(saved.error);
+        return false;
+    }
+    m_currentDocumentPath = path;
+    m_document.markSaved();
+    m_editorUi.clearError();
+    return true;
 }
 
 void MeshSculptTool::synchronizeAfterDocumentChange(

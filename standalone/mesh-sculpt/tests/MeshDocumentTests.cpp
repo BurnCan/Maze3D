@@ -102,6 +102,21 @@ int main()
     check(!document.selection().selectedVertex() && !document.selection().selectedTriangle(),
           "clear selection is idempotent");
 
+    MeshDocument loadedDocument;
+    loadedDocument.selectVertex(0);
+    auto created = SculptMesh::create({{0, 0, 0}, {1, 0, 0}, {0, 1, 0}}, {0, 2, 1});
+    result = loadedDocument.replaceMesh(std::move(created.mesh));
+    check(result.success && result.geometryChanged && result.verticesChanged && result.indicesChanged,
+          "replaceMesh reports changed geometry");
+    check(!loadedDocument.selection().selectedVertex() && loadedDocument.revision() == 1,
+          "load-style replacement clears selection and increments revision");
+    loadedDocument.markSaved();
+    check(!loadedDocument.isDirty(), "markSaved after load clears dirty state");
+    const auto loadedRevision = loadedDocument.revision();
+    result = loadedDocument.replaceMesh(loadedDocument.mesh());
+    check(result.success && !result.geometryChanged && loadedDocument.revision() == loadedRevision,
+          "identical replaceMesh does not increment revision");
+
     if (failures == 0) std::cout << "All MeshDocument tests passed.\n";
     return failures == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

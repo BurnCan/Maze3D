@@ -36,6 +36,7 @@ public:
 
     MutationResult replaceFromText(std::string_view verticesText,
                                    std::string_view indicesText);
+    MutationResult replaceMesh(SculptMesh mesh);
     MutationResult setVertex(std::size_t vertexIndex, const glm::vec3& position);
     MutationResult deleteTriangle(std::size_t triangleIndex);
     MutationResult resetToDefault();

@@ -28,7 +28,19 @@ FetchContent_Declare(imgui
     GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(glfw glm glad imgui)
+FetchContent_Declare(nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_Declare(portable_file_dialogs
+    GIT_REPOSITORY https://github.com/samhocevar/portable-file-dialogs.git
+    GIT_TAG 0.1.0
+    GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(glfw glm glad imgui nlohmann_json portable_file_dialogs)
 
 add_library(mesh_sculpt_imgui STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -43,4 +55,3 @@ target_include_directories(mesh_sculpt_imgui PUBLIC
     ${imgui_SOURCE_DIR}/backends
 )
 target_link_libraries(mesh_sculpt_imgui PUBLIC glfw)
-

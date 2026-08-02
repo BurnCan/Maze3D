@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <cstdlib>
+#include <cmath>
 #include <limits>
 #include <sstream>
 #include <utility>
@@ -43,6 +44,10 @@ bool parseIndex(const std::string& token, std::uint32_t& value)
 std::string validationError(const std::vector<glm::vec3>& vertices,
                             const std::vector<std::uint32_t>& indices)
 {
+    for (std::size_t i = 0; i < vertices.size(); ++i)
+        if (!std::isfinite(vertices[i].x) || !std::isfinite(vertices[i].y) ||
+            !std::isfinite(vertices[i].z))
+            return "Vertex " + std::to_string(i) + " contains a non-finite coordinate.";
     if (indices.size() % 3 != 0)
         return "Triangle index data must contain a multiple of three values.";
     for (std::size_t i = 0; i < indices.size(); ++i)
@@ -53,6 +58,17 @@ std::string validationError(const std::vector<glm::vec3>& vertices,
 }
 
 } // namespace
+
+SculptMesh::CreateResult SculptMesh::create(std::vector<glm::vec3> vertices,
+                                             std::vector<std::uint32_t> indices)
+{
+    if (auto error = ::mesh_sculpt::sculpt::validationError(vertices, indices); !error.empty())
+        return {false, {}, std::move(error)};
+    SculptMesh mesh;
+    mesh.m_vertices = std::move(vertices);
+    mesh.m_indices = std::move(indices);
+    return {true, std::move(mesh), {}};
+}
 
 SculptMesh SculptMesh::makeDefaultCube()
 {
@@ -136,7 +152,8 @@ std::string SculptMesh::indicesToText() const
 
 bool SculptMesh::setVertex(std::size_t index, const glm::vec3& position)
 {
-    if (index >= m_vertices.size())
+    if (index >= m_vertices.size() || !std::isfinite(position.x) ||
+        !std::isfinite(position.y) || !std::isfinite(position.z))
         return false;
     m_vertices[index] = position;
     return true;

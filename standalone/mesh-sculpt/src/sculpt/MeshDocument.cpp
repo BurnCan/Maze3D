@@ -15,6 +15,13 @@ MeshDocument::MutationResult MeshDocument::replaceFromText(
     if (!parseResult.success)
         return {false, false, false, false, false, parseResult.error};
 
+    return replaceMesh(std::move(replacement));
+}
+
+MeshDocument::MutationResult MeshDocument::replaceMesh(SculptMesh replacement)
+{
+    if (!replacement.isValid())
+        return {false, false, false, false, false, replacement.validationError()};
     const bool verticesChanged = m_mesh.vertices() != replacement.vertices();
     const bool indicesChanged = m_mesh.indices() != replacement.indices();
     const bool selectionChanged = m_selection.selectedVertex().has_value() ||
