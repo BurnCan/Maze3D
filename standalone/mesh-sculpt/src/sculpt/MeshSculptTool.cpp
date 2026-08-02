@@ -20,9 +20,7 @@ MeshSculptTool::MeshSculptTool(mesh_sculpt::render::Camera* camera)
                std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/basic.frag"),
       m_highlightShader(std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/highlight.vert",
                         std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/highlight.frag"),
-      m_selectedVertex(-1),
-      m_isDragging(false),
-      m_selectedTriangle (-1)
+      m_isDragging(false)
 {
     initializeMesh(); // initialize default cube and text buffers
 }
@@ -30,74 +28,25 @@ MeshSculptTool::MeshSculptTool(mesh_sculpt::render::Camera* camera)
 void MeshSculptTool::resetMesh()
 {
     initializeMesh();
-    m_selectedVertex = -1;
-    m_selectedTriangle = -1;
+    m_selection.clear();
     m_isDragging = false;
 }
-
-// ------------------------------------------------------------
-// Camera Ray Helpers
-// ------------------------------------------------------------
-glm::vec3 MeshSculptTool::getCameraRayOrigin() const
-{
-    return m_camera->position();
-}
-
-glm::vec3 MeshSculptTool::getCameraRayDirection() const
-{
-    return glm::normalize(m_camera->forward());
-}
-
-// ------------------------------------------------------------
-// Vertex Picking
-// ------------------------------------------------------------
-void MeshSculptTool::pickVertex()
-{
-    glm::vec3 rayOrigin = getCameraRayOrigin();
-    glm::vec3 rayDir = getCameraRayDirection();
-
-    float bestDistance = 0.1f;
-    int bestIndex = -1;
-
-    const auto& verts = m_sculptMesh.vertices();
-
-    for (int i = 0; i < static_cast<int>(verts.size()); ++i)
-    {
-        glm::vec3 v = verts[i];
-        glm::vec3 toVertex = v - rayOrigin;
-        float t = glm::dot(toVertex, rayDir);
-
-        if (t < 0.0f)
-            continue;
-
-        glm::vec3 projected = rayOrigin + rayDir * t;
-        float dist = glm::length(v - projected);
-
-        if (dist < bestDistance)
-        {
-            bestDistance = dist;
-            bestIndex = i;
-        }
-    }
-
-    m_selectedVertex = bestIndex;
-}
-
-
 
 // ------------------------------------------------------------
 // Begin Drag
 // ------------------------------------------------------------
 void MeshSculptTool::beginDrag()
 {
-    if (m_selectedVertex < 0)
+    const auto selectedVertex = m_selection.selectedVertex();
+    const auto ray = makeCameraForwardRay(*m_camera);
+    if (!selectedVertex || !ray)
         return;
 
     m_isDragging = true;
 
     // Drag plane along camera view
-    m_dragPlaneNormal = getCameraRayDirection();
-    m_dragStartPosition = m_sculptMesh.vertices()[m_selectedVertex];
+    m_dragPlaneNormal = ray->direction;
+    m_dragStartPosition = m_sculptMesh.vertices()[*selectedVertex];
     m_dragPlaneDistance = -glm::dot(m_dragPlaneNormal, m_dragStartPosition);
 }
 
@@ -106,11 +55,13 @@ void MeshSculptTool::beginDrag()
 // ------------------------------------------------------------
 void MeshSculptTool::updateDrag()
 {
-    if (!m_isDragging || m_selectedVertex < 0)
+    const auto selectedVertex = m_selection.selectedVertex();
+    const auto ray = makeCameraForwardRay(*m_camera);
+    if (!m_isDragging || !selectedVertex || !ray)
         return;
 
-    glm::vec3 rayOrigin = getCameraRayOrigin();
-    glm::vec3 rayDir = getCameraRayDirection();
+    const glm::vec3 rayOrigin = ray->origin;
+    const glm::vec3 rayDir = ray->direction;
 
     float denom = glm::dot(m_dragPlaneNormal, rayDir);
     if (std::abs(denom) < 1e-5f)
@@ -121,7 +72,7 @@ void MeshSculptTool::updateDrag()
         return;
 
     glm::vec3 hitPoint = rayOrigin + rayDir * t;
-    if (!m_sculptMesh.setVertex(static_cast<std::size_t>(m_selectedVertex), hitPoint))
+    if (!m_sculptMesh.setVertex(*selectedVertex, hitPoint))
         return;
     uploadMeshToGpu();
     syncVerticesToText();
@@ -144,7 +95,8 @@ void MeshSculptTool::initializeMesh()
 {
     m_sculptMesh = SculptMesh::makeDefaultCube();
     uploadMeshToGpu();
-    clearSelection();
+    m_selection.clear();
+    m_isDragging = false;
     m_meshInputError.clear();
     syncVerticesToText();
     syncIndicesToText();
@@ -158,20 +110,10 @@ void MeshSculptTool::uploadMeshToGpu()
     validateSelection();
 }
 
-void MeshSculptTool::clearSelection()
-{
-    m_selectedVertex = -1;
-    m_selectedTriangle = -1;
-    m_isDragging = false;
-}
-
 void MeshSculptTool::validateSelection()
 {
-    if (m_selectedVertex < 0 || static_cast<std::size_t>(m_selectedVertex) >= m_sculptMesh.vertexCount())
-        m_selectedVertex = -1;
-    if (m_selectedTriangle < 0 || static_cast<std::size_t>(m_selectedTriangle) >= m_sculptMesh.triangleCount())
-        m_selectedTriangle = -1;
-    if (m_selectedVertex < 0)
+    m_selection.validateAgainst(m_sculptMesh);
+    if (!m_selection.selectedVertex())
         m_isDragging = false;
 }
 
@@ -197,7 +139,8 @@ void MeshSculptTool::applyMeshText()
     }
 
     m_meshInputError.clear();
-    clearSelection();
+    m_selection.clear();
+    m_isDragging = false;
     uploadMeshToGpu();
 }
 
@@ -213,92 +156,19 @@ void MeshSculptTool::syncIndicesToText()
 
 void MeshSculptTool::deleteSelectedTriangle()
 {
-    if (m_selectedTriangle < 0)
+    const auto selectedTriangle = m_selection.selectedTriangle();
+    if (!selectedTriangle)
         return;
 
-    if (!m_sculptMesh.deleteTriangle(static_cast<std::size_t>(m_selectedTriangle)))
+    if (!m_sculptMesh.deleteTriangle(*selectedTriangle))
     {
         validateSelection();
         return;
     }
 
-    m_selectedTriangle = -1;
-    validateSelection();
+    m_selection.clearTriangle();
     uploadMeshToGpu();
     syncIndicesToText();
-}
-
-// --- Triangle Picking ---
-//int m_selectedTriangle = -1;
-bool rayIntersectsTriangle(const glm::vec3& orig,
-                           const glm::vec3& dir,
-                           const glm::vec3& v0,
-                           const glm::vec3& v1,
-                           const glm::vec3& v2,
-                           float& t)
-{
-    const float EPSILON = 0.0000001f;
-
-    glm::vec3 edge1 = v1 - v0;
-    glm::vec3 edge2 = v2 - v0;
-    glm::vec3 h = glm::cross(dir, edge2);
-    float a = glm::dot(edge1, h);
-
-    if (a > -EPSILON && a < EPSILON)
-        return false;
-
-    float f = 1.0f / a;
-    glm::vec3 s = orig - v0;
-    float u = f * glm::dot(s, h);
-
-    if (u < 0.0f || u > 1.0f)
-        return false;
-
-    glm::vec3 q = glm::cross(s, edge1);
-    float v = f * glm::dot(dir, q);
-
-    if (v < 0.0f || u + v > 1.0f)
-        return false;
-
-    t = f * glm::dot(edge2, q);
-    return t > EPSILON;
-}
-
-void MeshSculptTool::pickTriangle()
-{
-    m_selectedTriangle = -1;
-
-    glm::vec3 rayOrigin = m_camera->position();
-    glm::vec3 rayDir = getCameraRayDirection();
-
-    const auto& verts = m_sculptMesh.vertices();
-    const auto& indices = m_sculptMesh.indices();
-
-    float closestT = std::numeric_limits<float>::max();
-
-    for (size_t i = 0; i + 2 < indices.size(); i += 3)
-    {
-        const unsigned int i0 = indices[i];
-        const unsigned int i1 = indices[i + 1];
-        const unsigned int i2 = indices[i + 2];
-
-        if (i0 >= verts.size() || i1 >= verts.size() || i2 >= verts.size())
-            continue;
-
-        glm::vec3 v0 = verts[i0];
-        glm::vec3 v1 = verts[i1];
-        glm::vec3 v2 = verts[i2];
-
-        float t;
-        if (rayIntersectsTriangle(rayOrigin, rayDir, v0, v1, v2, t))
-        {
-            if (t < closestT)
-            {
-                closestT = t;
-                m_selectedTriangle = static_cast<int>(i / 3);
-            }
-        }
-    }
 }
 
 // ------------------------------------------------------------
@@ -315,14 +185,30 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed,
     // --- If mouse just clicked and not dragging, select vertex ---
     if (leftClickPressed && !m_isDragging)
     {
-        pickVertex();        // this preserves your original click-to-select
-        beginDrag();         // begin dragging immediately after selection
+        const auto ray = makeCameraForwardRay(*m_camera);
+        if (ray)
+        {
+            const auto vertex = m_picker.pickVertex(m_sculptMesh, *ray);
+            if (vertex)
+                m_selection.selectVertex(*vertex);
+            else
+                m_selection.clearVertex();
+        }
+        beginDrag();
     }
 
     // --- If mouse just clicked and not dragging, select triangle ---
     if (leftClickPressed && !m_isDragging)
     {
-        pickTriangle();
+        const auto ray = makeCameraForwardRay(*m_camera);
+        if (ray)
+        {
+            const auto triangle = m_picker.pickTriangle(m_sculptMesh, *ray);
+            if (triangle)
+                m_selection.selectTriangle(*triangle);
+            else
+                m_selection.clearTriangle();
+        }
     }
 
     // --- If currently dragging, move vertex with mouse ---
@@ -333,7 +219,7 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed,
     if (m_isDragging && !leftClickPressed)
         endDrag();
 
-    if (m_selectedTriangle >= 0 && deleteKeyPressed)
+    if (m_selection.selectedTriangle() && deleteKeyPressed)
     {
         deleteSelectedTriangle();
     }
@@ -375,7 +261,7 @@ void MeshSculptTool::render()
     glBindVertexArray(0);
 
     // Highlight selected vertex
-    if (m_selectedVertex >= 0 && m_selectedVertex < static_cast<int>(m_sculptMesh.vertices().size()))
+    if (const auto selectedVertex = m_selection.selectedVertex(); selectedVertex && *selectedVertex < m_sculptMesh.vertices().size())
     {
         m_highlightShader.bind();
         m_highlightShader.setMat4("uModel", model);
@@ -385,19 +271,19 @@ void MeshSculptTool::render()
 
         glBindVertexArray(m_mesh.vao());
         glPointSize(18.0f);
-        glDrawArrays(GL_POINTS, m_selectedVertex, 1);
+        glDrawArrays(GL_POINTS, static_cast<GLint>(*selectedVertex), 1);
         glBindVertexArray(0);
     }
     // Highlight selected triangle
-    if (m_selectedTriangle >= 0)
+    if (const auto selectedTriangle = m_selection.selectedTriangle())
     {
         //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         const auto& indices = m_sculptMesh.indices();
-        const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
+        const size_t triBase = *selectedTriangle * 3;
 
         if (triBase + 2 >= indices.size())
         {
-            m_selectedTriangle = -1;
+            m_selection.clearTriangle();
         }
         else
         {
@@ -453,12 +339,13 @@ void MeshSculptTool::renderOverlay(const glm::vec2& viewportMin, const glm::vec2
         drawList->AddLine(ImVec2(center.x, center.y - size), ImVec2(center.x, center.y + size), color, 2.0f);
     }
 
-    if (m_selectedTriangle < 0)
+    const auto selectedTriangle = m_selection.selectedTriangle();
+    if (!selectedTriangle)
         return;
 
     const auto& indices = m_sculptMesh.indices();
     const auto& verts = m_sculptMesh.vertices();
-    const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
+    const size_t triBase = *selectedTriangle * 3;
 
     if (triBase + 2 >= indices.size())
         return;
@@ -507,15 +394,15 @@ void MeshSculptTool::renderImGui()
     ImGui::Text("Vertex Count: %zu", verts.size());
     ImGui::Separator();
 
-    if (m_selectedVertex >= 0 && m_selectedVertex < static_cast<int>(verts.size()))
+    if (const auto selectedVertex = m_selection.selectedVertex(); selectedVertex && *selectedVertex < verts.size())
     {
-        glm::vec3 v = verts[m_selectedVertex];
+        glm::vec3 v = verts[*selectedVertex];
         ImGui::Text("Selected Vertex");
-        ImGui::Text("Index: %d", m_selectedVertex);
+        ImGui::Text("Index: %zu", *selectedVertex);
         ImGui::Text("X: %.3f Y: %.3f Z: %.3f", v.x, v.y, v.z);
 
         if (ImGui::DragFloat3("Edit Position", &v.x, 0.01f) &&
-            m_sculptMesh.setVertex(static_cast<std::size_t>(m_selectedVertex), v))
+            m_sculptMesh.setVertex(*selectedVertex, v))
         {
             uploadMeshToGpu();
             syncVerticesToText();

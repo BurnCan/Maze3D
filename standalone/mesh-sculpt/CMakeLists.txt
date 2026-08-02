@@ -11,6 +11,8 @@ include(CTest)
 
 add_library(mesh_sculpt_model
     src/sculpt/SculptMesh.cpp
+    src/sculpt/MeshSelection.cpp
+    src/sculpt/MeshPicker.cpp
 )
 target_include_directories(mesh_sculpt_model PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(mesh_sculpt_model PUBLIC glm::glm)
@@ -45,4 +47,12 @@ if(BUILD_TESTING)
     add_executable(sculpt_mesh_tests tests/SculptMeshTests.cpp)
     target_link_libraries(sculpt_mesh_tests PRIVATE mesh_sculpt_model)
     add_test(NAME SculptMeshTests COMMAND sculpt_mesh_tests)
+
+    add_executable(mesh_selection_tests tests/MeshSelectionTests.cpp)
+    target_link_libraries(mesh_selection_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME MeshSelectionTests COMMAND mesh_selection_tests)
+
+    add_executable(mesh_picker_tests tests/MeshPickerTests.cpp)
+    target_link_libraries(mesh_picker_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME MeshPickerTests COMMAND mesh_picker_tests)
 endif()
