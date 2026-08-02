@@ -9,6 +9,7 @@
 #include "mesh_sculpt/sculpt/SculptMesh.h"
 #include "mesh_sculpt/sculpt/MeshPicker.h"
 #include "mesh_sculpt/sculpt/MeshSelection.h"
+#include "mesh_sculpt/sculpt/VertexDragManipulator.h"
 
 namespace mesh_sculpt::sculpt {
 
@@ -36,9 +37,9 @@ private:
     bool copyTextToBuffer(const std::string& text, char* buffer, size_t size, const char* label);
 
     // ---- Picking & Dragging ----
-    void beginDrag();
-    void updateDrag();
-    void endDrag();
+    void beginDrag(const Ray& ray);
+    void updateDrag(const Ray& ray);
+    void endDrag() noexcept;
 
     void syncVerticesToText();
     void syncIndicesToText();
@@ -57,10 +58,7 @@ private:
     MeshPicker m_picker;
 
     // ---- Drag State ----
-    bool m_isDragging = false;
-    glm::vec3 m_dragPlaneNormal = glm::vec3(0.0f);
-    glm::vec3 m_dragStartPosition = glm::vec3(0.0f);
-    float m_dragPlaneDistance = 0.0f;
+    VertexDragManipulator m_dragManipulator;
 
     // ---- ImGui text buffers ----
     static constexpr size_t BUF_SIZE = 8192;
