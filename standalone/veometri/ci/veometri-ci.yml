@@ -1,0 +1,32 @@
+# Move this file to .github/workflows after migration and replace each nested -S path with: -S .
+name: Veometri CI template
+on: [push, pull_request]
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { compiler: g++, type: Debug, werror: ON }
+          - { compiler: clang++, type: Release, werror: OFF }
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev xorg-dev
+      - run: cmake -S standalone/veometri -B build/veometri -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=${{ matrix.type }} -DBUILD_TESTING=ON -DVEOMETRI_WARNINGS_AS_ERRORS=${{ matrix.werror }}
+      - run: cmake --build build/veometri --parallel
+      - run: ctest --test-dir build/veometri --output-on-failure
+      - run: python3 standalone/veometri/scripts/check_standalone_independence.py
+      - run: python3 standalone/veometri/scripts/check_product_identity.py
+      - run: python3 standalone/veometri/scripts/verify_install.py build/veometri --config ${{ matrix.type }}
+      - run: python3 standalone/veometri/scripts/verify_package.py build/veometri --config ${{ matrix.type }}
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S standalone/veometri -B build/veometri -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build/veometri --config Release --parallel
+      - run: ctest --test-dir build/veometri -C Release --output-on-failure
+      - run: python standalone/veometri/scripts/check_standalone_independence.py
+      - run: python standalone/veometri/scripts/check_product_identity.py
+      - run: python standalone/veometri/scripts/verify_install.py build/veometri --config Release
+      - run: python standalone/veometri/scripts/verify_package.py build/veometri --config Release
