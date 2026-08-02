@@ -7,6 +7,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(cmake/Dependencies.cmake)
 find_package(OpenGL REQUIRED)
+include(CTest)
+
+add_library(mesh_sculpt_model
+    src/sculpt/SculptMesh.cpp
+)
+target_include_directories(mesh_sculpt_model PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(mesh_sculpt_model PUBLIC glm::glm)
 
 add_executable(mesh_sculpt
     src/main.cpp
@@ -26,6 +33,7 @@ target_compile_definitions(mesh_sculpt PRIVATE
     MESH_SCULPT_ASSET_ROOT="${PROJECT_SOURCE_DIR}/assets"
 )
 target_link_libraries(mesh_sculpt PRIVATE
+    mesh_sculpt_model
     glad
     glfw
     glm::glm
@@ -33,3 +41,8 @@ target_link_libraries(mesh_sculpt PRIVATE
     OpenGL::GL
 )
 
+if(BUILD_TESTING)
+    add_executable(sculpt_mesh_tests tests/SculptMeshTests.cpp)
+    target_link_libraries(sculpt_mesh_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME SculptMeshTests COMMAND sculpt_mesh_tests)
+endif()

@@ -6,6 +6,7 @@
 #include "mesh_sculpt/render/Shader.h"
 #include "mesh_sculpt/render/DynamicMesh.h"
 #include "mesh_sculpt/render/Camera.h"
+#include "mesh_sculpt/sculpt/SculptMesh.h"
 
 namespace mesh_sculpt::sculpt {
 
@@ -27,7 +28,11 @@ private:
     void initializeMesh();
 
     // ---- Mesh Editing ----
-    void parseMeshText(const char* vertsText, const char* indicesText);
+    void applyMeshText();
+    void uploadMeshToGpu();
+    void clearSelection();
+    void validateSelection();
+    bool copyTextToBuffer(const std::string& text, char* buffer, size_t size, const char* label);
 
     // ---- Picking & Dragging ----
     void pickVertex();
@@ -47,6 +52,7 @@ private:
     mesh_sculpt::render::Camera* m_camera = nullptr;
 
     mesh_sculpt::render::DynamicMesh m_mesh;
+    SculptMesh m_sculptMesh;
     mesh_sculpt::render::Shader m_shader;
     mesh_sculpt::render::Shader m_highlightShader;
 
@@ -64,6 +70,7 @@ private:
     static constexpr size_t BUF_SIZE = 8192;
     char m_verticesBuf[BUF_SIZE] = {0};
     char m_indicesBuf[BUF_SIZE] = {0};
+    std::string m_meshInputError;
 };
 
 } // namespace mesh_sculpt::sculpt
