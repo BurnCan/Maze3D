@@ -13,6 +13,7 @@ add_library(mesh_sculpt_model
     src/sculpt/SculptMesh.cpp
     src/sculpt/MeshSelection.cpp
     src/sculpt/MeshPicker.cpp
+    src/sculpt/VertexDragManipulator.cpp
 )
 target_include_directories(mesh_sculpt_model PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(mesh_sculpt_model PUBLIC glm::glm)
@@ -55,4 +56,8 @@ if(BUILD_TESTING)
     add_executable(mesh_picker_tests tests/MeshPickerTests.cpp)
     target_link_libraries(mesh_picker_tests PRIVATE mesh_sculpt_model)
     add_test(NAME MeshPickerTests COMMAND mesh_picker_tests)
+
+    add_executable(vertex_drag_manipulator_tests tests/VertexDragManipulatorTests.cpp)
+    target_link_libraries(vertex_drag_manipulator_tests PRIVATE mesh_sculpt_model)
+    add_test(NAME VertexDragManipulatorTests COMMAND vertex_drag_manipulator_tests)
 endif()

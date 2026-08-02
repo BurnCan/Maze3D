@@ -19,8 +19,7 @@ MeshSculptTool::MeshSculptTool(mesh_sculpt::render::Camera* camera)
       m_shader(std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/basic.vert",
                std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/basic.frag"),
       m_highlightShader(std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/highlight.vert",
-                        std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/highlight.frag"),
-      m_isDragging(false)
+                        std::string(MESH_SCULPT_ASSET_ROOT) + "/shaders/highlight.frag")
 {
     initializeMesh(); // initialize default cube and text buffers
 }
@@ -29,50 +28,42 @@ void MeshSculptTool::resetMesh()
 {
     initializeMesh();
     m_selection.clear();
-    m_isDragging = false;
+    m_dragManipulator.end();
 }
 
 // ------------------------------------------------------------
 // Begin Drag
 // ------------------------------------------------------------
-void MeshSculptTool::beginDrag()
+void MeshSculptTool::beginDrag(const Ray& ray)
 {
     const auto selectedVertex = m_selection.selectedVertex();
-    const auto ray = makeCameraForwardRay(*m_camera);
-    if (!selectedVertex || !ray)
+    if (!selectedVertex || *selectedVertex >= m_sculptMesh.vertices().size())
+    {
+        m_dragManipulator.end();
         return;
-
-    m_isDragging = true;
-
-    // Drag plane along camera view
-    m_dragPlaneNormal = ray->direction;
-    m_dragStartPosition = m_sculptMesh.vertices()[*selectedVertex];
-    m_dragPlaneDistance = -glm::dot(m_dragPlaneNormal, m_dragStartPosition);
+    }
+    // Preserve the camera-facing plane chosen by the original tool.
+    m_dragManipulator.begin(m_sculptMesh.vertices()[*selectedVertex], ray.direction, ray);
 }
 
 // ------------------------------------------------------------
 // Update Drag
 // ------------------------------------------------------------
-void MeshSculptTool::updateDrag()
+void MeshSculptTool::updateDrag(const Ray& ray)
 {
     const auto selectedVertex = m_selection.selectedVertex();
-    const auto ray = makeCameraForwardRay(*m_camera);
-    if (!m_isDragging || !selectedVertex || !ray)
+    if (!selectedVertex || *selectedVertex >= m_sculptMesh.vertices().size())
+    {
+        m_dragManipulator.end();
         return;
-
-    const glm::vec3 rayOrigin = ray->origin;
-    const glm::vec3 rayDir = ray->direction;
-
-    float denom = glm::dot(m_dragPlaneNormal, rayDir);
-    if (std::abs(denom) < 1e-5f)
+    }
+    const auto position = m_dragManipulator.update(ray);
+    if (!position)
         return;
-
-    float t = -(glm::dot(m_dragPlaneNormal, rayOrigin) + m_dragPlaneDistance) / denom;
-    if (t < 0.0f)
+    const glm::vec3 difference = *position - m_sculptMesh.vertices()[*selectedVertex];
+    if (glm::dot(difference, difference) <= 1.0e-12f)
         return;
-
-    glm::vec3 hitPoint = rayOrigin + rayDir * t;
-    if (!m_sculptMesh.setVertex(*selectedVertex, hitPoint))
+    if (!m_sculptMesh.setVertex(*selectedVertex, *position))
         return;
     uploadMeshToGpu();
     syncVerticesToText();
@@ -81,9 +72,9 @@ void MeshSculptTool::updateDrag()
 // ------------------------------------------------------------
 // End Drag
 // ------------------------------------------------------------
-void MeshSculptTool::endDrag()
+void MeshSculptTool::endDrag() noexcept
 {
-    m_isDragging = false;
+    m_dragManipulator.end();
 }
 
 
@@ -96,7 +87,7 @@ void MeshSculptTool::initializeMesh()
     m_sculptMesh = SculptMesh::makeDefaultCube();
     uploadMeshToGpu();
     m_selection.clear();
-    m_isDragging = false;
+    m_dragManipulator.end();
     m_meshInputError.clear();
     syncVerticesToText();
     syncIndicesToText();
@@ -114,7 +105,7 @@ void MeshSculptTool::validateSelection()
 {
     m_selection.validateAgainst(m_sculptMesh);
     if (!m_selection.selectedVertex())
-        m_isDragging = false;
+        m_dragManipulator.end();
 }
 
 bool MeshSculptTool::copyTextToBuffer(const std::string& text, char* buffer, size_t size, const char* label)
@@ -140,7 +131,7 @@ void MeshSculptTool::applyMeshText()
 
     m_meshInputError.clear();
     m_selection.clear();
-    m_isDragging = false;
+    m_dragManipulator.end();
     uploadMeshToGpu();
 }
 
@@ -183,7 +174,7 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed,
         return;
 
     // --- If mouse just clicked and not dragging, select vertex ---
-    if (leftClickPressed && !m_isDragging)
+    if (leftClickPressed && !m_dragManipulator.isActive())
     {
         const auto ray = makeCameraForwardRay(*m_camera);
         if (ray)
@@ -194,11 +185,12 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed,
             else
                 m_selection.clearVertex();
         }
-        beginDrag();
+        if (ray)
+            beginDrag(*ray);
     }
 
     // --- If mouse just clicked and not dragging, select triangle ---
-    if (leftClickPressed && !m_isDragging)
+    if (leftClickPressed && !m_dragManipulator.isActive())
     {
         const auto ray = makeCameraForwardRay(*m_camera);
         if (ray)
@@ -212,11 +204,16 @@ void MeshSculptTool::update(float dt, bool cameraControl, bool leftClickPressed,
     }
 
     // --- If currently dragging, move vertex with mouse ---
-    if (m_isDragging)
-        updateDrag();
+    if (m_dragManipulator.isActive())
+    {
+        if (const auto ray = makeCameraForwardRay(*m_camera))
+            updateDrag(*ray);
+        else
+            endDrag();
+    }
 
     // --- If dragging but mouse released, stop dragging ---
-    if (m_isDragging && !leftClickPressed)
+    if (m_dragManipulator.isActive() && !leftClickPressed)
         endDrag();
 
     if (m_selection.selectedTriangle() && deleteKeyPressed)
