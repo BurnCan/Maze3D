@@ -2,6 +2,8 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <fstream>
+#include <iterator>
 #include <string>
 
 using mesh_sculpt::io::GeometryFileFormat;
@@ -19,6 +21,11 @@ int main()
     auto decoded = GeometryFileFormat::decode(encoded);
     check(decoded.success && decoded.mesh.equals(cube), "round trip preserves vertices, indices, and winding");
     check(decoded.mesh.isValid(), "decoded geometry satisfies invariants");
+    std::ifstream example(MESH_SCULPT_EXAMPLE_FILE);
+    const std::string exampleText((std::istreambuf_iterator<char>(example)), {});
+    check(example.good() || example.eof(), "example geometry is readable");
+    const auto exampleDecoded = GeometryFileFormat::decode(exampleText);
+    check(exampleDecoded.success && exampleDecoded.mesh.equals(cube), "example cube loads successfully");
     check(GeometryFileFormat::decode(R"({"format":"indexed-geometry","version":1,"primitive":"triangles","vertices":[],"indices":[]})").success,
           "valid empty mesh round trips");
     check(!GeometryFileFormat::decode("{").success, "malformed JSON rejected");
