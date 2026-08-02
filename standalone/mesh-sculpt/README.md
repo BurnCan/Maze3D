@@ -12,13 +12,49 @@ repository in the future. The implementation was extracted from
 - Vertex and triangle picking, selected-element overlays, and vertex dragging
 - Triangle deletion
 - Editable vertex and triangle-index text
-- **Reset Mesh** and **Exit** menu actions
+- **New**, **Open**, **Save**, **Save As**, **Reset Mesh**, and **Exit** menu actions
+
+## Indexed geometry files
+
+The tool's project-local `.meshgeo` extension stores portable, human-readable
+indexed geometry. The extension is temporary and may change when the standalone
+application receives its final product name. Version 1 has this JSON schema:
+
+```json
+{
+  "format": "indexed-geometry",
+  "version": 1,
+  "primitive": "triangles",
+  "vertices": [
+    [0.0, 0.0, 0.0],
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0]
+  ],
+  "indices": [0, 1, 2]
+}
+```
+
+Each vertex is exactly three finite coordinates. Indices are zero-based unsigned
+integers, and every consecutive group of three describes one triangle. Vertex
+and index ordering is preserved, so triangle winding is preserved. All five
+shown fields are required and their semantic values are versioned. Version 1
+readers ignore unknown top-level fields for limited forward compatibility;
+re-saving does not preserve those fields. Unsupported format identifiers,
+versions, primitives, and malformed geometry are rejected transactionally.
+
+Version 1 intentionally contains only one indexed triangle mesh. It has no
+normals, texture coordinates, materials, transforms, scene hierarchy, or
+compression, and it does not claim compatibility with other geometry formats.
+Saving writes a complete temporary file beside the destination and then replaces
+the destination. POSIX rename replacement is atomic; on platforms whose rename
+API cannot replace an existing file, the save reports an error and retains the
+old destination.
 
 ## Requirements and dependencies
 
 A C++20 compiler, CMake 3.20 or newer, Git, and OpenGL development files are
-required. CMake fetches GLFW 3.3.9, GLAD 0.1.36, GLM 0.9.9.8, and Dear ImGui
-1.91.9 (docking), including its GLFW and OpenGL 3 backends.
+required. CMake fetches GLFW 3.3.9, GLAD 0.1.36, GLM 0.9.9.8, Dear ImGui
+1.91.9 (docking), nlohmann/json 3.11.3, and portable-file-dialogs 0.1.0.
 
 Linux is the only environment verified during this extraction. On Debian or
 Ubuntu, install a compiler, CMake, Git, and the X11/OpenGL development packages
@@ -58,4 +94,4 @@ subdirectory such as `build/mesh-sculpt/Debug/mesh_sculpt.exe`.
 | `Delete` | Delete the selected triangle |
 
 The on-screen panels expose the vertex/index text and current mode. The File
-menu provides **Reset Mesh** and **Exit**.
+menu provides document creation, `.meshgeo` open/save, reset, and exit actions.

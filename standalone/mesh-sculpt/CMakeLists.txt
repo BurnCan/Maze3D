@@ -22,6 +22,13 @@ add_library(mesh_sculpt_model
 target_include_directories(mesh_sculpt_model PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(mesh_sculpt_model PUBLIC glm::glm)
 
+add_library(mesh_sculpt_io
+    src/io/GeometryFileFormat.cpp
+    src/io/GeometryFileService.cpp
+)
+target_include_directories(mesh_sculpt_io PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_link_libraries(mesh_sculpt_io PUBLIC mesh_sculpt_model nlohmann_json::nlohmann_json)
+
 add_executable(mesh_sculpt
     src/main.cpp
     src/app/SculptApplication.cpp
@@ -43,10 +50,12 @@ target_compile_definitions(mesh_sculpt PRIVATE
 )
 target_link_libraries(mesh_sculpt PRIVATE
     mesh_sculpt_model
+    mesh_sculpt_io
     glad
     glfw
     glm::glm
     mesh_sculpt_imgui
+    portable_file_dialogs
     OpenGL::GL
 )
 
@@ -62,6 +71,14 @@ if(BUILD_TESTING)
     add_executable(mesh_document_tests tests/MeshDocumentTests.cpp)
     target_link_libraries(mesh_document_tests PRIVATE mesh_sculpt_model)
     add_test(NAME MeshDocumentTests COMMAND mesh_document_tests)
+
+    add_executable(geometry_file_format_tests tests/GeometryFileFormatTests.cpp)
+    target_link_libraries(geometry_file_format_tests PRIVATE mesh_sculpt_io)
+    add_test(NAME GeometryFileFormatTests COMMAND geometry_file_format_tests)
+
+    add_executable(geometry_file_service_tests tests/GeometryFileServiceTests.cpp)
+    target_link_libraries(geometry_file_service_tests PRIVATE mesh_sculpt_io)
+    add_test(NAME GeometryFileServiceTests COMMAND geometry_file_service_tests)
 
     add_executable(mesh_picker_tests tests/MeshPickerTests.cpp)
     target_link_libraries(mesh_picker_tests PRIVATE mesh_sculpt_model)

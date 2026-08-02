@@ -14,8 +14,11 @@
 #include <backends/imgui_impl_opengl3.h>
 
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <stdexcept>
+#include <string>
+#include <portable-file-dialogs.h>
 
 namespace mesh_sculpt::app
 {
@@ -177,6 +180,11 @@ private:
     void update()
     {
         m_tool->update(m_deltaTime, m_cameraControl, m_leftClick, m_deletePressed);
+        std::string title = "Mesh Sculpt Tool — ";
+        title += m_tool->currentDocumentPath() ?
+            m_tool->currentDocumentPath()->filename().string() : "Untitled";
+        if (m_tool->isDirty()) title += " *";
+        m_window->setTitle(title);
     }
 
     void renderScene()
@@ -215,6 +223,22 @@ private:
     {
         switch (action)
         {
+            case sculpt::MeshSculptUi::FileAction::NewDocument:
+                m_tool->newDocument();
+                break;
+            case sculpt::MeshSculptUi::FileAction::OpenDocument:
+            {
+                const auto paths = pfd::open_file("Open geometry", "", {"Geometry files", "*.meshgeo"}).result();
+                if (!paths.empty()) m_tool->openDocument(paths.front());
+                break;
+            }
+            case sculpt::MeshSculptUi::FileAction::SaveDocument:
+                if (m_tool->currentDocumentPath()) m_tool->saveDocument(*m_tool->currentDocumentPath());
+                else saveAs();
+                break;
+            case sculpt::MeshSculptUi::FileAction::SaveDocumentAs:
+                saveAs();
+                break;
             case sculpt::MeshSculptUi::FileAction::ResetMesh:
                 m_tool->resetMesh();
                 break;
@@ -224,6 +248,16 @@ private:
             case sculpt::MeshSculptUi::FileAction::None:
                 break;
         }
+    }
+
+    void saveAs()
+    {
+        auto selected = pfd::save_file("Save geometry", "untitled.meshgeo",
+            {"Geometry files", "*.meshgeo"}).result();
+        if (selected.empty()) return;
+        std::filesystem::path path(selected);
+        if (!path.has_extension()) path += ".meshgeo";
+        m_tool->saveDocument(path);
     }
 
     void requestClose()

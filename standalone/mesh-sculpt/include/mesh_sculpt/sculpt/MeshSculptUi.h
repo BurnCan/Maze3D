@@ -8,6 +8,10 @@ public:
     enum class FileAction
     {
         None,
+        NewDocument,
+        OpenDocument,
+        SaveDocument,
+        SaveDocumentAs,
         ResetMesh,
         Exit
     };

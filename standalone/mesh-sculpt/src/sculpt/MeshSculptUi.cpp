@@ -12,6 +12,11 @@ MeshSculptUi::FileAction MeshSculptUi::renderMainMenuBar()
     {
         if (ImGui::BeginMenu("File"))
         {
+            if (ImGui::MenuItem("New")) action = FileAction::NewDocument;
+            if (ImGui::MenuItem("Open...")) action = FileAction::OpenDocument;
+            if (ImGui::MenuItem("Save")) action = FileAction::SaveDocument;
+            if (ImGui::MenuItem("Save As...")) action = FileAction::SaveDocumentAs;
+            ImGui::Separator();
             if (ImGui::MenuItem("Reset Mesh"))
                 action = FileAction::ResetMesh;
 
