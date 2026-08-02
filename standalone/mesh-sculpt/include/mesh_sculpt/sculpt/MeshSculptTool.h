@@ -7,6 +7,8 @@
 #include "mesh_sculpt/render/DynamicMesh.h"
 #include "mesh_sculpt/render/Camera.h"
 #include "mesh_sculpt/sculpt/SculptMesh.h"
+#include "mesh_sculpt/sculpt/MeshPicker.h"
+#include "mesh_sculpt/sculpt/MeshSelection.h"
 
 namespace mesh_sculpt::sculpt {
 
@@ -30,23 +32,17 @@ private:
     // ---- Mesh Editing ----
     void applyMeshText();
     void uploadMeshToGpu();
-    void clearSelection();
     void validateSelection();
     bool copyTextToBuffer(const std::string& text, char* buffer, size_t size, const char* label);
 
     // ---- Picking & Dragging ----
-    void pickVertex();
     void beginDrag();
     void updateDrag();
     void endDrag();
 
     void syncVerticesToText();
     void syncIndicesToText();
-    void pickTriangle();
     void deleteSelectedTriangle();
-
-    glm::vec3 getCameraRayOrigin() const;
-    glm::vec3 getCameraRayDirection() const;
 
 private:
     mesh_sculpt::render::Camera* m_camera = nullptr;
@@ -57,8 +53,8 @@ private:
     mesh_sculpt::render::Shader m_highlightShader;
 
     // ---- Selection ----
-    int  m_selectedVertex = -1;
-    int  m_selectedTriangle = -1;
+    MeshSelection m_selection;
+    MeshPicker m_picker;
 
     // ---- Drag State ----
     bool m_isDragging = false;
