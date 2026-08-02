@@ -59,7 +59,7 @@ void MeshSculptTool::pickVertex()
     float bestDistance = 0.1f;
     int bestIndex = -1;
 
-    auto& verts = m_mesh.vertices();
+    const auto& verts = m_sculptMesh.vertices();
 
     for (int i = 0; i < static_cast<int>(verts.size()); ++i)
     {
@@ -97,7 +97,7 @@ void MeshSculptTool::beginDrag()
 
     // Drag plane along camera view
     m_dragPlaneNormal = getCameraRayDirection();
-    m_dragStartPosition = m_mesh.vertices()[m_selectedVertex];
+    m_dragStartPosition = m_sculptMesh.vertices()[m_selectedVertex];
     m_dragPlaneDistance = -glm::dot(m_dragPlaneNormal, m_dragStartPosition);
 }
 
@@ -121,8 +121,9 @@ void MeshSculptTool::updateDrag()
         return;
 
     glm::vec3 hitPoint = rayOrigin + rayDir * t;
-    m_mesh.vertices()[m_selectedVertex] = hitPoint;
-    m_mesh.upload(); // DynamicMesh uploads updated vertices to GPU
+    if (!m_sculptMesh.setVertex(static_cast<std::size_t>(m_selectedVertex), hitPoint))
+        return;
+    uploadMeshToGpu();
     syncVerticesToText();
 }
 
@@ -141,104 +142,73 @@ void MeshSculptTool::endDrag()
 // ------------------------------------------------------------
 void MeshSculptTool::initializeMesh()
 {
-    std::vector<glm::vec3> verts = {
-        {-0.5f,-0.5f,-0.5f},{ 0.5f,-0.5f,-0.5f},{ 0.5f, 0.5f,-0.5f},{-0.5f, 0.5f,-0.5f},
-        {-0.5f,-0.5f, 0.5f},{ 0.5f,-0.5f, 0.5f},{ 0.5f, 0.5f, 0.5f},{-0.5f, 0.5f, 0.5f}
-    };
-
-    std::vector<unsigned int> indices = {
-        0,1,2, 2,3,0,
-        4,5,6, 6,7,4,
-        0,4,7, 7,3,0,
-        1,5,6, 6,2,1,
-        3,7,6, 6,2,3,
-        0,1,5, 5,4,0
-    };
-
-    m_mesh.setVertices(verts);
-    m_mesh.setIndices(indices);
-    m_mesh.upload();
-
-    // Fill ImGui text buffers
-    std::ostringstream vertStream;
-    for (auto& v : verts)
-        vertStream << v.x << " " << v.y << " " << v.z << "\n";
-    strncpy(m_verticesBuf, vertStream.str().c_str(), sizeof(m_verticesBuf)-1);
-
-    std::ostringstream indStream;
-    for (size_t i=0; i<indices.size(); i+=3)
-        indStream << indices[i] << " " << indices[i+1] << " " << indices[i+2] << "\n";
-    strncpy(m_indicesBuf, indStream.str().c_str(), sizeof(m_indicesBuf)-1);
+    m_sculptMesh = SculptMesh::makeDefaultCube();
+    uploadMeshToGpu();
+    clearSelection();
+    m_meshInputError.clear();
+    syncVerticesToText();
+    syncIndicesToText();
 }
 
-// ------------------------------------------------------------
-// Parse Mesh From Text
-// ------------------------------------------------------------
-void MeshSculptTool::parseMeshText(const char* vertsText, const char* indicesText)
+void MeshSculptTool::uploadMeshToGpu()
 {
-    std::vector<glm::vec3> verts;
-    std::vector<unsigned int> indices;
+    m_mesh.setVertices(m_sculptMesh.vertices());
+    m_mesh.setIndices(m_sculptMesh.indices());
+    m_mesh.upload();
+    validateSelection();
+}
 
-    std::istringstream vertStream(vertsText);
-    float x,y,z;
-    while (vertStream >> x >> y >> z)
-        verts.emplace_back(x,y,z);
+void MeshSculptTool::clearSelection()
+{
+    m_selectedVertex = -1;
+    m_selectedTriangle = -1;
+    m_isDragging = false;
+}
 
-    std::istringstream indStream(indicesText);
-    unsigned int a,b,c;
-    while (indStream >> a >> b >> c)
-    {
-        indices.push_back(a);
-        indices.push_back(b);
-        indices.push_back(c);
-    }
-
-    if (!verts.empty() && !indices.empty())
-    {
-        m_mesh.setVertices(verts);
-        m_mesh.setIndices(indices);
-        m_mesh.upload();
-
+void MeshSculptTool::validateSelection()
+{
+    if (m_selectedVertex < 0 || static_cast<std::size_t>(m_selectedVertex) >= m_sculptMesh.vertexCount())
         m_selectedVertex = -1;
+    if (m_selectedTriangle < 0 || static_cast<std::size_t>(m_selectedTriangle) >= m_sculptMesh.triangleCount())
         m_selectedTriangle = -1;
+    if (m_selectedVertex < 0)
         m_isDragging = false;
+}
+
+bool MeshSculptTool::copyTextToBuffer(const std::string& text, char* buffer, size_t size, const char* label)
+{
+    if (text.size() >= size)
+    {
+        m_meshInputError = std::string(label) + " text exceeds the editor buffer capacity.";
+        return false;
     }
+    std::memcpy(buffer, text.data(), text.size());
+    buffer[text.size()] = '\0';
+    return true;
+}
+
+void MeshSculptTool::applyMeshText()
+{
+    const SculptMesh::ParseResult result = m_sculptMesh.replaceFromText(m_verticesBuf, m_indicesBuf);
+    if (!result.success)
+    {
+        m_meshInputError = result.error;
+        return;
+    }
+
+    m_meshInputError.clear();
+    clearSelection();
+    uploadMeshToGpu();
 }
 
 void MeshSculptTool::syncVerticesToText()
 {
-    std::ostringstream vertStream;
-
-    for (const auto& v : m_mesh.vertices())
-        vertStream << v.x << " " << v.y << " " << v.z << "\n";
-
-    std::string text = vertStream.str();
-
-    std::memset(m_verticesBuf, 0, sizeof(m_verticesBuf));
-    std::strncpy(m_verticesBuf, text.c_str(), sizeof(m_verticesBuf) - 1);
+    copyTextToBuffer(m_sculptMesh.verticesToText(), m_verticesBuf, sizeof(m_verticesBuf), "Vertex");
 }
 
 void MeshSculptTool::syncIndicesToText()
 {
-    std::ostringstream indStream;
-
-    const auto& indices = m_mesh.indices();
-
-    for (size_t i = 0; i < indices.size(); i += 3)
-    {
-        if (i + 2 < indices.size())
-        {
-            indStream
-                << indices[i]     << " "
-                << indices[i + 1] << " "
-                << indices[i + 2] << "\n";
-        }
-    }
-
-    std::string text = indStream.str();
-
-    std::memset(m_indicesBuf, 0, sizeof(m_indicesBuf));
-    std::strncpy(m_indicesBuf, text.c_str(), sizeof(m_indicesBuf) - 1);
+    copyTextToBuffer(m_sculptMesh.indicesToText(), m_indicesBuf, sizeof(m_indicesBuf), "Index");
 }
 
 void MeshSculptTool::deleteSelectedTriangle()
@@ -246,20 +216,15 @@ void MeshSculptTool::deleteSelectedTriangle()
     if (m_selectedTriangle < 0)
         return;
 
-    auto& indices = m_mesh.indices();
-    const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
-
-    if (triBase + 2 >= indices.size())
+    if (!m_sculptMesh.deleteTriangle(static_cast<std::size_t>(m_selectedTriangle)))
     {
-        m_selectedTriangle = -1;
+        validateSelection();
         return;
     }
 
-    indices.erase(indices.begin() + triBase,
-                  indices.begin() + triBase + 3);
     m_selectedTriangle = -1;
-
-    m_mesh.upload();
+    validateSelection();
+    uploadMeshToGpu();
     syncIndicesToText();
 }
 
@@ -306,8 +271,8 @@ void MeshSculptTool::pickTriangle()
     glm::vec3 rayOrigin = m_camera->position();
     glm::vec3 rayDir = getCameraRayDirection();
 
-    const auto& verts = m_mesh.vertices();
-    const auto& indices = m_mesh.indices();
+    const auto& verts = m_sculptMesh.vertices();
+    const auto& indices = m_sculptMesh.indices();
 
     float closestT = std::numeric_limits<float>::max();
 
@@ -406,11 +371,11 @@ void MeshSculptTool::render()
     glEnable(GL_PROGRAM_POINT_SIZE);
     glPointSize(8.0f);
     m_shader.setVec3("uColor", glm::vec3(0.2f,0.9f,0.3f));
-    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_mesh.vertices().size()));
+    glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(m_sculptMesh.vertices().size()));
     glBindVertexArray(0);
 
     // Highlight selected vertex
-    if (m_selectedVertex >= 0 && m_selectedVertex < static_cast<int>(m_mesh.vertices().size()))
+    if (m_selectedVertex >= 0 && m_selectedVertex < static_cast<int>(m_sculptMesh.vertices().size()))
     {
         m_highlightShader.bind();
         m_highlightShader.setMat4("uModel", model);
@@ -427,7 +392,7 @@ void MeshSculptTool::render()
     if (m_selectedTriangle >= 0)
     {
         //glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        const auto& indices = m_mesh.indices();
+        const auto& indices = m_sculptMesh.indices();
         const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
 
         if (triBase + 2 >= indices.size())
@@ -491,8 +456,8 @@ void MeshSculptTool::renderOverlay(const glm::vec2& viewportMin, const glm::vec2
     if (m_selectedTriangle < 0)
         return;
 
-    const auto& indices = m_mesh.indices();
-    const auto& verts = m_mesh.vertices();
+    const auto& indices = m_sculptMesh.indices();
+    const auto& verts = m_sculptMesh.vertices();
     const size_t triBase = static_cast<size_t>(m_selectedTriangle) * 3;
 
     if (triBase + 2 >= indices.size())
@@ -538,20 +503,23 @@ void MeshSculptTool::renderImGui()
 {
     ImGui::Begin("Mesh Sculpt Tool");
 
-    auto& verts = m_mesh.vertices();
+    const auto& verts = m_sculptMesh.vertices();
     ImGui::Text("Vertex Count: %zu", verts.size());
     ImGui::Separator();
 
     if (m_selectedVertex >= 0 && m_selectedVertex < static_cast<int>(verts.size()))
     {
-        glm::vec3& v = verts[m_selectedVertex];
+        glm::vec3 v = verts[m_selectedVertex];
         ImGui::Text("Selected Vertex");
         ImGui::Text("Index: %d", m_selectedVertex);
         ImGui::Text("X: %.3f Y: %.3f Z: %.3f", v.x, v.y, v.z);
 
-        if (ImGui::DragFloat3("Edit Position", &v.x, 0.01f))
-            m_mesh.upload();
+        if (ImGui::DragFloat3("Edit Position", &v.x, 0.01f) &&
+            m_sculptMesh.setVertex(static_cast<std::size_t>(m_selectedVertex), v))
+        {
+            uploadMeshToGpu();
             syncVerticesToText();
+        }
     }
     else
     {
@@ -561,10 +529,13 @@ void MeshSculptTool::renderImGui()
     ImGui::Separator();
 
     if (ImGui::InputTextMultiline("Vertices", m_verticesBuf, sizeof(m_verticesBuf)))
-        parseMeshText(m_verticesBuf, m_indicesBuf);
+        applyMeshText();
 
     if (ImGui::InputTextMultiline("Indices", m_indicesBuf, sizeof(m_indicesBuf)))
-        parseMeshText(m_verticesBuf, m_indicesBuf);
+        applyMeshText();
+
+    if (!m_meshInputError.empty())
+        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "%s", m_meshInputError.c_str());
 
     ImGui::End();
 }
